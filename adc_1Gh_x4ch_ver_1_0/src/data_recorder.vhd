@@ -7,7 +7,7 @@ use IEEE.math_real.ALL;
 
 library work;
 use work.true_dpram_sclk;
-use work.blk_mem_gen_v7_3_0;
+--use work.blk_mem_gen_v7_3_0;
 
 entity data_recorder is
     generic (
@@ -193,28 +193,28 @@ counter_b_proc :
     end if;
   end process;
 
-mem_ist : ENTITY blk_mem_gen_v7_3_0
-  PORT map(
-    clka    => clk,
-    wea(0)  => we_a,
-    addra   => addr,
-    dina    => s_data,
-    douta   => m_data
-  );
-
-
---dpram_inst : entity true_dpram_sclk
---  Generic map(
---    c_data_width  => c_data_width,
---    c_data_num    => c_max_num_data
---  )
---  Port map
---  (
---    data    => s_data,
---    addr    => addr,
---    wea     => we_a,
---    clk     => clk,
---    q       => m_data
+--mem_ist : ENTITY blk_mem_gen_v7_3_0
+--  PORT map(
+--    clka    => clk,
+--    wea(0)  => we_a,
+--    addra   => addr,
+--    dina    => s_data,
+--    douta   => m_data
 --  );
+
+
+dpram_inst : entity true_dpram_sclk
+  Generic map(
+    c_data_width  => c_data_width,
+    c_data_num    => c_max_num_data
+  )
+  Port map
+  (
+    data    => s_data,
+    addr    => addr,
+    wea     => we_a,
+    clk     => clk,
+    q       => m_data
+  );
 
 end Behavioral;

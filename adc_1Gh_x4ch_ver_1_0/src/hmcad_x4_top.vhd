@@ -22,6 +22,7 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.STD_LOGIC_unsigned.ALL;
+use ieee.std_logic_arith.all;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
@@ -33,9 +34,8 @@ library UNISIM;
 use UNISIM.VComponents.all;
 
 library work;
-use work.HMCAD1511_v3_00;
 use work.clock_generator;
-use work.spi_master;
+use work.spi_adc_250x4_master;
 use work.hmcad_x4_block;
 
 entity hmcad_x4_top is
@@ -106,26 +106,6 @@ end hmcad_x4_top;
 
 architecture Behavioral of hmcad_x4_top is
     constant C_BURST_WIDTH_SPIFI        : integer := 16;
-    signal lclk_0                       : std_logic;
-    signal lclk_1                       : std_logic;
-    signal lclk_2                       : std_logic;
-    signal lclk_3                       : std_logic;
-    
-    signal adc0_aclk_out                : std_logic;
-    signal adc0_valid                   : std_logic;
-    signal adc0_data                    : std_logic_vector(63 downto 0);
-    
-    signal adc1_aclk_out                : std_logic;
-    signal adc1_valid                   : std_logic;
-    signal adc1_data                    : std_logic_vector(63 downto 0);
-    
-    signal adc2_aclk_out                : std_logic;
-    signal adc2_valid                   : std_logic;
-    signal adc2_data                    : std_logic_vector(63 downto 0);
-
-    signal adc3_aclk_out                : std_logic;
-    signal adc3_valid                   : std_logic;
-    signal adc3_data                    : std_logic_vector(63 downto 0);
     
     signal sys_rst                      : std_logic;
     signal pll_lock                     : std_logic;
@@ -134,7 +114,22 @@ architecture Behavioral of hmcad_x4_top is
     signal rst                          : std_logic;
     signal infrst_rst_out               : std_logic;
     
-    signal MISO_I                       : std_logic;
+    type SPIRegistersStrucrure       is (TriggerSetUp, ADCEnableReg, TriggerPositionSetUp, ControlReg, StatusReg, StructureLength);
+    type SPIRegistersType    is array (SPIRegistersStrucrure'pos(StructureLength) - 1 downto 0) of std_logic_vector(15 downto 0);
+    signal SPIRegisters                 : SPIRegistersType := (
+                                            SPIRegistersStrucrure'pos(TriggerSetUp) => x"7F00",
+                                            SPIRegistersStrucrure'pos(ADCEnableReg) => x"0007",
+                                            SPIRegistersStrucrure'pos(TriggerPositionSetUp) => x"0800",
+                                            SPIRegistersStrucrure'pos(ControlReg) => x"0000",
+                                            others => (others => '0')
+                                            );
+
+    type ControlRegType             is (program_rst,
+                                        mode_0,
+                                        mode_1,
+                                        pulse_start,
+                                        StructureLength);
+    signal MISO_I                       : std_logic := '0';
     signal MISO_O                       : std_logic;
     signal MISO_T                       : std_logic;
     signal MOSI_I                       : std_logic;
@@ -157,13 +152,40 @@ architecture Behavioral of hmcad_x4_top is
     signal aext_trig                    : std_logic;
     signal trig_start                   : std_logic;
     signal trig_position                : std_logic_vector(15 downto 0);
-
+    signal spi_rst_cmd                  : std_logic;
+    signal hmcad_x4_block_rst           : std_logic;
+    signal trigger_mode                 : std_logic_vector(1 downto 0);
+    signal trigger_start                : std_logic;
+    signal trigger_start_counter        : integer;
+    signal trigger_start_delay          : std_logic_vector(3 downto 0);
+    
+    signal state_out                    : integer;
+    signal pulse                        : std_logic;
+    
+    constant calid_done_delay           : integer := 10000000;
+    signal trigger_start_out            : std_logic;
 begin
 
 rst <= infrst_rst_out;
 
+process(clk_125MHz, rst)
+begin
+  if (rst = '1') then 
+    hmcad_x4_block_rst <= '1';
+  elsif rising_edge(clk_125MHz) then
+    if (spi_rst_cmd = '1') then 
+      hmcad_x4_block_rst <= '1';
+--    elsif (adcx_active_status /= "0000") then
+--      hmcad_x4_block_rst <= '1';
+    else
+      hmcad_x4_block_rst <= '0';
+    end if;
+  end if;
+end process;
+
 dd(0) <= pll_lock;
-dd(1) <= adcx_calib_done(0) and adcx_calib_done(1) and adcx_calib_done(2);
+dd(1) <= adcx_calib_done(3) and adcx_calib_done(2) and adcx_calib_done(1) and adcx_calib_done(0);
+
 dd(dd'length - 1 downto 2) <= (others => 'Z');
 
 sys_rst <= (not xc_sys_rstn);
@@ -178,12 +200,11 @@ Clock_gen_inst : entity clock_generator
       rst_out           => infrst_rst_out
     );
 
-
-spi_fcb_master_inst : entity spi_master
+spi_fcb_master_inst : entity spi_adc_250x4_master
     generic map(
-      C_CPHA            => '1',
-      C_CPOL            => '1',
-      C_LSB_FIRST       => false
+      C_CPHA            => 1,
+      C_CPOL            => 1,
+      C_LSB_FIRST       => 0
     )
     Port map( 
       SCK               => fpga_sck,
@@ -224,115 +245,70 @@ MOSI_I <= fpga_mosi;
 -- управляющие регистры 
 -------------------------------------------------
 -- процесс записи/чтения регистров управления
-reg_address_int <= conv_integer(m_fcb_addr(6 downto 0));
-
---m_fcb_wr_process :
---    process(clk_125MHz)
---    begin
---      if rising_edge(clk_125MHz) then
---        if (infrst_rst_out = '1') then
---          wr_req_vec <= (others => '0');
---          control_reg(15 downto 0) <= (others => '0');
---          trig_set_up_reg(15 downto 8) <= x"7f";
---          trig_set_up_reg(3 downto 0) <= (others => '0');
---          low_adc_buff_len <= x"2004";
---          trig_window_width_reg <= x"0200";
---          calib_pattern_reg <= x"55AA";
---          adc_calib <= '0';
---        elsif (m_fcb_wrreq = '1') then
---          m_fcb_wrack <= '1';
---          case reg_address_int is
---            when 0 => 
---              wr_req_vec(0) <= '1';
---              trig_set_up_reg(15 downto 2) <= m_fcb_wrdata(15 downto 2);
---            when 1 => 
---              wr_req_vec(1) <= '1';
---              trig_window_width_reg <= m_fcb_wrdata;
---            when 2 =>
---              wr_req_vec(2) <= '1';
---              trig_position_reg <= m_fcb_wrdata;
---            when 3 =>
---              wr_req_vec(3) <= '1';
---              trig_set_up_reg(1 downto 0) <= m_fcb_wrdata(3 downto 2);
---              control_reg(1 downto 0) <= m_fcb_wrdata(1 downto 0);
---              control_reg(7 downto 4) <= m_fcb_wrdata(7 downto 4);
---            when 4 =>
---              wr_req_vec(4) <= '1';
---              calib_pattern_reg <= m_fcb_wrdata;
---            when 5 =>
---              wr_req_vec(5) <= '1';
---              low_adc_buff_len <= m_fcb_wrdata;
---            when 6 => 
---              pulse_start <= m_fcb_wrdata(0);
---            when others =>
---          end case;
---        else 
---          m_fcb_wrack               <= '0';
---          wr_req_vec                <= (others => '0');
---          control_reg(15 downto 0)  <= (others => '0');
---          pulse_start               <= '0';
---          adc_calib                 <= control_reg(0);
---        end if;
---      end if;
---    end process;
-
-m_fcb_rd_process :
-    process(clk_125MHz)
-    begin
-      if rising_edge(clk_125MHz) then
-        if (m_fcb_rdreq = '1') then
-          m_fcb_rdack <= '1';
-          case reg_address_int is
-            when 0 => 
-              m_fcb_rddata <= adc0_data(15 downto 0);
-            when 1 => 
-              m_fcb_rddata <= adc0_data(31 downto 16);
-            when 2 =>
-              m_fcb_rddata <= adc0_data(47 downto 32);
-            when 3 =>
-              m_fcb_rddata <= adc0_data(63 downto 48);
-            when 4 =>
-              m_fcb_rddata <= adc1_data(15 downto 0);
-            when 5 => 
-              m_fcb_rddata <= adc1_data(31 downto 16);
-            when 6 =>
-              m_fcb_rddata <= adc1_data(47 downto 32);
-            when 7 =>
-              m_fcb_rddata <= adc1_data(63 downto 48);
-            when 8 =>
-              m_fcb_rddata <= adc2_data(15 downto 0);
-            when 9 => 
-              m_fcb_rddata <= adc2_data(31 downto 16);
-            when 10 =>
-              m_fcb_rddata <= adc2_data(47 downto 32);
-            when 11 =>
-              m_fcb_rddata <= adc2_data(63 downto 48);
-            when 12 => 
-              m_fcb_rddata <= adc3_data(15 downto 0);
-            when 13 => 
-              m_fcb_rddata <= adc3_data(31 downto 16);
-            when 14 =>
-              m_fcb_rddata <= adc3_data(47 downto 32);
-            when 15 =>
-              m_fcb_rddata <= adc3_data(63 downto 48);
-            when 16 =>
-              m_fcb_rddata(3 downto 0) <= adc3_valid & adc2_valid & adc1_valid & adc0_valid;
-            when others =>
-          end case;
-        else 
-          m_fcb_rdack <= '0';
-        end if;
+-------------------------------------------------
+spi_write_process :
+  process(rst, clk_125MHz)
+  begin
+    if (rst = '1') then
+      m_fcb_wrack <= '0';
+      m_fcb_rdack <= '0';
+    elsif rising_edge(clk_125MHz) then
+      if (m_fcb_wrreq = '1') then
+        m_fcb_wrack <= '1';
+        SPIRegisters(conv_integer(m_fcb_addr)) <= m_fcb_wrdata;
+      elsif (m_fcb_rdreq = '1') then
+        m_fcb_rdack <= '1';
+        m_fcb_rddata <= SPIRegisters(conv_integer(m_fcb_addr));
+      else
+        m_fcb_wrack <= '0';
+        m_fcb_rdack <= '0';
+        SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(3 downto 0) <= (others => '0');
+        trigger_start_delay(0) <= '0';
       end if;
-    end process;
+      spi_rst_cmd <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(program_rst));
+      SPIRegisters(SPIRegistersStrucrure'pos(StatusReg)) <= "00000000000" & trigger_start_out & conv_std_logic_vector(state_out, 4);
+    end if;
+  end process;
+
+process(clk_125MHz, rst)
+begin
+  if (rst = '1') then
+    trigger_start <= '0';
+    trigger_mode <= "00";
+  elsif rising_edge(clk_125MHz) then
+    if (SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(mode_1) downto ControlRegType'pos(mode_0)) /= 0) then
+      trigger_mode <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(mode_1) downto ControlRegType'pos(mode_0));
+      trigger_start <= '1';
+      trigger_start_counter <= 0;
+    else
+      if (trigger_start = '1') and (trigger_start_counter < 3) then
+        trigger_start_counter <= trigger_start_counter + 1;
+      else
+        trigger_start <= '0';
+      end if;
+    end if;
+    pulse <=  SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(pulse_start));
+  end if;
+end process;
+
+OBUFDS_inst : OBUFDS
+   generic map (
+      IOSTANDARD => "DEFAULT")
+   port map (
+      O => pulse_p,     -- Diff_p output (connect directly to top-level port)
+      OB => pulse_n,   -- Diff_n output (connect directly to top-level port)
+      I => pulse      -- Buffer input 
+   );
+
 
 hmcad_x4_block_inst : entity hmcad_x4_block
   Port map(
-    areset                 => rst,
-    acfg_bits              => acfg_bits,
-    aext_trig              => aext_trig,
-
-    trig_start             => trig_start,
-    trig_position          => trig_position,
+    areset                 => hmcad_x4_block_rst,
+    TriggerSetUp           => SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp)),
+    ADCEnableReg           => SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg)),
+    TriggerPositionSetUp   => SPIRegisters(SPIRegistersStrucrure'pos(TriggerPositionSetUp)),
+    mode                   => trigger_mode,
+    start                  => trigger_start,
     
     adc0_lclk_p             => adc0_lclk_p,
     adc0_lclk_n             => adc0_lclk_n,
@@ -372,12 +348,15 @@ hmcad_x4_block_inst : entity hmcad_x4_block
 
     adcx_calib_done         => adcx_calib_done,
     adcx_data_valid         => adcx_data_valid,
+    
+    state_out               => state_out,
+    trigger_start_out       => trigger_start_out,
 
     spifi_cs                => spifi_cs ,
     spifi_sck               => spifi_sck,
     spifi_sio               => spifi_sio
-    );
+  );
 
-  int_adcx <= adcx_data_valid and adcx_calib_done;
+  int_adcx <= adcx_data_valid;
 
 end Behavioral;

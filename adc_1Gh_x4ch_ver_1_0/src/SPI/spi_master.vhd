@@ -126,7 +126,7 @@ spi_rec_irq_proc :
       
       spi_trans_busy_d0 <= spi_trans_busy;
       spi_trans_busy_d1 <= spi_trans_busy_d0;
-      spi_tr_irq <= (not spi_trans_busy_d1) and spi_trans_busy_d0;
+      spi_tr_irq <= spi_trans_busy_d1 and (not spi_trans_busy_d0);
     end if;
   end process;
 

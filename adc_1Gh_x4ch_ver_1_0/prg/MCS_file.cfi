@@ -1,0 +1,11 @@
+# PROMGEN: Xilinx Prom Generator P.20131013
+# Copyright (c) 1995-2013 Xilinx, Inc.  All rights reserved.
+
+SOFTWARE_VERSION P.20131013
+DATE            09/29/2020 - 09:39
+SOURCE          D:\GitFiles\hmcad1511_x4\adc_1Gh_x4ch_ver_1_0\prg\MCS_file.mcs
+DEVICE          XCF04S
+DATA_WIDTH      8
+FILL_DATA       0xFF
+SIGNATURE       0x01338174
+START_ADDRESS   0x00000000 END_ADDRESS 0x00071543 DIRECTION_UP   "D:/GitFiles/hmcad1511_x4/adc_1Gh_x4ch_ver_1_0/prj/hmcad1511_adc_x4.runs/impl_1/hmcad_x4_top.bit" 6slx16ftg256

@@ -1,3 +1,6 @@
+NET "spifi_sio[3]" IOSTANDARD = LVCMOS25;
+NET "i2c_scl" IOSTANDARD = LVCMOS25;
+NET "int_adcx[3]" IOSTANDARD = LVCMOS25;
 ##########################################################################
 ##  Clock pin inst
 ##########################################################################
@@ -26,7 +29,7 @@ NET "adc0_lclk_n" LOC = J12;
 NET "adc0_lclk_n" IOSTANDARD = LVDS_25;
 NET "adc0_lclk_n" DIFF_TERM = "TRUE";
 
-NET "hmcad_x4_block_inst/adc0_data_receiver/hscs/gclk" TNM_NET = "lck0_div8";
+NET "hmcad_x4_block_inst/adc0_deser_clk/rx_bufg_x1" TNM_NET = "lck0_div8";
 TIMESPEC TS_lck0_div8 = PERIOD "lck0_div8" 8 ns HIGH 50 %;
 
 NET "adc0_fclk_p" LOC = J13;
@@ -102,8 +105,8 @@ NET "adc1_lclk_n" LOC = J16;
 NET "adc1_lclk_n" IOSTANDARD = LVDS_25;
 NET "adc1_lclk_n" DIFF_TERM = "TRUE";
 
-NET "hmcad_x4_block_inst/adc1_data_receiver/hscs/gclk" TNM_NET = "lck1_div8";
-TIMESPEC TS_lck1_div8 = PERIOD "lck1_div8" 8 ns HIGH 50 %;
+#NET "hmcad_x4_block_inst/adc1_deser_clk/rx_bufg_x1" TNM_NET = "lck1_div8";
+#TIMESPEC TS_lck1_div8 = PERIOD "lck1_div8" 8 ns HIGH 50 %;
 
 NET "adc1_fclk_p" LOC = K12;
 NET "adc1_fclk_p" IOSTANDARD = LVDS_25;
@@ -178,8 +181,8 @@ NET "adc2_lclk_n" LOC = J4;
 NET "adc2_lclk_n" IOSTANDARD = LVDS_25;
 NET "adc2_lclk_n" DIFF_TERM = "TRUE";
 
-NET "hmcad_x4_block_inst/adc2_data_receiver/hscs/gclk" TNM_NET = "lck2_div8";
-TIMESPEC TS_lck2_div8 = PERIOD "lck2_div8" 8 ns HIGH 50 %;
+#NET "hmcad_x4_block_inst/adc2_deser_clk/rx_bufg_x1" TNM_NET = "lck2_div8";
+#TIMESPEC TS_lck2_div8 = PERIOD "lck2_div8" 8 ns HIGH 50 %;
 
 NET "adc2_fclk_p" LOC = F2;
 NET "adc2_fclk_p" IOSTANDARD = LVDS_25;
@@ -254,8 +257,8 @@ NET "adc3_lclk_n" LOC = H3;
 NET "adc3_lclk_n" IOSTANDARD = LVDS_25;
 NET "adc3_lclk_n" DIFF_TERM = "TRUE";
 
-NET "hmcad_x4_block_inst/adc3_data_receiver/hscs/gclk" TNM_NET = "lck3_div8";
-TIMESPEC TS_lck3_div8 = PERIOD "lck3_div8" 8 ns HIGH 50 %;
+#NET "hmcad_x4_block_inst/adc3_deser_clk/rx_bufg_x1" TNM_NET = "lck3_div8";
+#TIMESPEC TS_lck3_div8 = PERIOD "lck3_div8" 8 ns HIGH 50 %;
 
 NET "adc3_fclk_p" LOC = J6;
 NET "adc3_fclk_p" IOSTANDARD = LVDS_25;
@@ -324,14 +327,14 @@ NET "adc3_dx_b_n[3]" DIFF_TERM = "TRUE";
 ## SPI
 #############################################################################
 
-NET "fpga_mosi" LOC = T5;
-NET "fpga_mosi" IOSTANDARD = LVCMOS33;
-NET "fpga_miso" LOC = N5;
-NET "fpga_miso" IOSTANDARD = LVCMOS33;
-NET "fpga_cs" LOC = P5;
-NET "fpga_cs" IOSTANDARD = LVCMOS33;
-NET "fpga_sck" LOC = L8;
-NET "fpga_sck" IOSTANDARD = LVCMOS33;
+NET "fpga_mosi" LOC = A9;
+NET "fpga_mosi" IOSTANDARD = LVCMOS25;
+NET "fpga_miso" LOC = A8;
+NET "fpga_miso" IOSTANDARD = LVCMOS25;
+NET "fpga_cs" LOC = B10;
+NET "fpga_cs" IOSTANDARD = LVCMOS25;
+NET "fpga_sck" LOC = B8;
+NET "fpga_sck" IOSTANDARD = LVCMOS25;
 
 ###############################################################################
 ## QSPI
@@ -361,5 +364,9 @@ NET "int_adcx[1]" LOC = A12;
 NET "int_adcx[0]" LOC = A13;
 NET "cs_dd" LOC = D11;
 NET "in_clk_20MHz" LOC = M9;
-NET "pulse_n" LOC = D8;
-NET "pulse_p" LOC = C8;
+NET "pulse_n" LOC = C8;
+NET "pulse_p" LOC = D8;
+
+
+NET "spifi_sck" CLOCK_DEDICATED_ROUTE = FALSE;
+

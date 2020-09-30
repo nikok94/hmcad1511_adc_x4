@@ -23,19 +23,23 @@ set_property "target_language" "VHDL" $obj
 # Sources
 add_files -norecurse ../src/hmcad_x4_top.vhd
 add_files -norecurse ../src/clock_generator.vhd
-add_files -norecurse ../src/SPI/spi_master.vhd
+#add_files -norecurse ../src/SPI/spi_master.vhd
 add_files -norecurse ../src/SPI/spi_data_receiver.vhd
-add_files -norecurse ../src/SPI/spi_data_transceiver.vhd
-add_files -norecurse ../src/HMCAD1511_v3_00/HMCAD1511_v3_00.vhd
-add_files -norecurse ../src/HMCAD1511_v3_00/data_deserializer.vhd
-add_files -norecurse ../src/HMCAD1511_v3_00/high_speed_clock_to_serdes.vhd
+#add_files -norecurse ../src/SPI/spi_data_transceiver.vhd
+#add_files -norecurse ../src/HMCAD1511_v3_00/HMCAD1511_v3_00.vhd
+#add_files -norecurse ../src/HMCAD1511_v3_00/data_deserializer.vhd
+#add_files -norecurse ../src/HMCAD1511_v3_00/high_speed_clock_to_serdes.vhd
 add_files -norecurse ../src/SPIFI/spifi_module.vhd
 add_files -norecurse ../src/hmcad_x4_block.vhd
 add_files -norecurse ../src/data_recorder.vhd
 add_files -norecurse ../src/trigger_capture.vhd
 add_files -norecurse ../src/true_dpram_sclk.vhd
-add_files -norecurse ../src/serdes_1_to_n_clk_ddr_s8_diff.v
-add_files -norecurse ../src/serdes_1_to_n_data_ddr_s8_diff.v
+add_files -norecurse ../src/serdes_1_to_n_clk_ddr_s8_diff.vhd
+add_files -norecurse ../src/serdes_1_to_n_data_ddr_s8_diff.vhd
+add_files -norecurse ../src/phase_detector.vhd
+add_files -norecurse ../src/SPI_ADC_250x4/spi_adc_250x4_master.vhd
+add_files -norecurse ../src/SPI_ADC_250x4/spi_byte_receiver.vhd
+add_files -norecurse ../src/SPI_ADC_250x4/spi_byte_transceiver.vhd
 
 
 ########################################################################
