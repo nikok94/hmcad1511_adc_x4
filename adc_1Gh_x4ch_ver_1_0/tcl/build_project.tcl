@@ -40,6 +40,7 @@ add_files -norecurse ../src/phase_detector.vhd
 add_files -norecurse ../src/SPI_ADC_250x4/spi_adc_250x4_master.vhd
 add_files -norecurse ../src/SPI_ADC_250x4/spi_byte_receiver.vhd
 add_files -norecurse ../src/SPI_ADC_250x4/spi_byte_transceiver.vhd
+add_files -norecurse ../src/hmcad_adc_block.vhd
 
 
 ########################################################################

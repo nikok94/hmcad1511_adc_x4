@@ -302,6 +302,9 @@ OBUFDS_inst : OBUFDS
 
 
 hmcad_x4_block_inst : entity hmcad_x4_block
+  Generic map (
+    c_max_num_data         => 32
+  )
   Port map(
     areset                 => hmcad_x4_block_rst,
     TriggerSetUp           => SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp)),
@@ -348,9 +351,6 @@ hmcad_x4_block_inst : entity hmcad_x4_block
 
     adcx_calib_done         => adcx_calib_done,
     adcx_data_valid         => adcx_data_valid,
-    
-    state_out               => state_out,
-    trigger_start_out       => trigger_start_out,
 
     spifi_cs                => spifi_cs ,
     spifi_sck               => spifi_sck,
