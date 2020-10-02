@@ -90,9 +90,8 @@ entity hmcad_x4_block is
     adc3_dx_b_n             : in std_logic_vector(3 downto 0);
 
     adcx_calib_done         : out std_logic_vector(3 downto 0);
-    adcx_data_valid         : out std_logic_vector(3 downto 0);
-    
-    adcx_valid              : out std_logic_vector(3 downto 0);
+    adcx_interrupt          : out std_logic_vector(3 downto 0);
+    adcx_tick_ms            : out std_logic_vector(3 downto 0);
     
     spifi_cs                : in std_logic;
     spifi_sck               : in std_logic;
@@ -192,6 +191,10 @@ architecture Behavioral of hmcad_x4_block is
   signal trigger3_out                   : std_logic;
 
   signal trigger                        : std_logic;
+  signal rec0_irq                       : std_logic;
+  signal rec1_irq                       : std_logic;
+  signal rec2_irq                       : std_logic;
+  signal rec3_irq                       : std_logic;
 
 begin
 
@@ -246,7 +249,9 @@ adc0_inst : entity hmcad_adc_block
     gclk                  => adc0_gclk,
     gclk_out              => adc0_gclk_out,
     calib_done            => adcx_calib_done(0),
-
+    tick_ms               => adcx_tick_ms(0),
+    
+    recorder_interrupt    => adcx_interrupt(0),
     recorder_rst          => rec0_rst,
     recorder_data         => rec0_data,
     recorder_valid        => rec0_valid,
@@ -281,7 +286,9 @@ adc1_inst : entity hmcad_adc_block
     gclk                  => adc1_gclk,
     gclk_out              => adc1_gclk_out,
     calib_done            => adcx_calib_done(1),
+    tick_ms               => adcx_tick_ms(1),
 
+    recorder_interrupt    => adcx_interrupt(1),
     recorder_rst          => rec1_rst,
     recorder_data         => rec1_data,
     recorder_valid        => rec1_valid,
@@ -316,7 +323,9 @@ adc2_inst : entity hmcad_adc_block
     gclk                  => adc2_gclk,
     gclk_out              => adc2_gclk_out,
     calib_done            => adcx_calib_done(2),
-
+    tick_ms               => adcx_tick_ms(2),
+    
+    recorder_interrupt    => adcx_interrupt(2),
     recorder_rst          => rec2_rst,
     recorder_data         => rec2_data,
     recorder_valid        => rec2_valid,
@@ -351,20 +360,29 @@ adc3_inst : entity hmcad_adc_block
     gclk                  => adc3_gclk,
     gclk_out              => adc3_gclk_out,
     calib_done            => adcx_calib_done(3),
+    tick_ms               => adcx_tick_ms(3),
 
+    recorder_interrupt    => adcx_interrupt(3),
     recorder_rst          => rec3_rst,
     recorder_data         => rec3_data,
     recorder_valid        => rec3_valid,
     recorder_ready        => rec3_ready,
     recorder_offset       => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0)
   );
-adcx_data_valid <= rec3_valid & rec2_valid & rec1_valid & rec0_valid;
+
+--adc0_gclk <= adc0_gclk_out;
+--adc1_gclk <= adc0_gclk_out;
+--adc2_gclk <= adc0_gclk_out;
+--adc3_gclk <= adc0_gclk_out;
+
+adc0_gclk <= adc0_gclk_out;
+adc1_gclk <= adc1_gclk_out;
+adc2_gclk <= adc2_gclk_out;
+adc3_gclk <= adc3_gclk_out;
+
 
 gclk <= adc0_gclk_out;
-adc0_gclk <= adc0_gclk_out;
-adc1_gclk <= adc0_gclk_out;
-adc2_gclk <= adc0_gclk_out;
-adc3_gclk <= adc0_gclk_out;
+
 
 
 spifi_sio <= PCS_O when spifi_T = '0' else (others => 'Z');
@@ -377,7 +395,7 @@ spifi_switch_byte_switch_proc :
     if (spifi_cs = '1') then 
       spifi_T <= '1';
       spifi_cmd_counter <= '0';
-    elsif falling_edge(spifi_sck) then
+    elsif rising_edge(spifi_sck) then
       if (spifi_cmd_valid = '1') then
 
         if (spifi_cmd_counter = '0') then
@@ -391,7 +409,7 @@ spifi_switch_byte_switch_proc :
   end process;
 
 spifi_mux_data_process :
-  process (spifi_switch_byte, rec0_data, rec1_data, rec2_data, rec3_data, rec0_valid, rec1_valid, rec2_valid, rec3_valid, spifi_cs_up, spifi_s_ready, spifi_T)
+  process (spifi_switch_byte, rec0_data, rec1_data, rec2_data, rec3_data, spifi_cs, spifi_s_ready, spifi_T)
   begin
     rec0_rst <= '0';
     rec1_rst <= '0';
@@ -403,23 +421,23 @@ spifi_mux_data_process :
     rec3_ready <= '0';
      case spifi_switch_byte is
         when x"00" => spifi_s_data <= rec0_data;
-                      spifi_s_valid <= rec0_valid;
+                      --spifi_s_valid <= rec0_valid;
                       rec0_rst <= spifi_cs;
                       rec0_ready <= spifi_s_ready and (not spifi_T);
         when x"01" => spifi_s_data <= rec1_data;
-                      spifi_s_valid <= rec1_valid;
+                      --spifi_s_valid <= rec1_valid;
                       rec1_rst <= spifi_cs;
                       rec1_ready <= spifi_s_ready  and (not spifi_T);
         when x"02" => spifi_s_data <= rec2_data;
-                      spifi_s_valid <= rec2_valid;
+                      --spifi_s_valid <= rec2_valid;
                       rec2_rst <= spifi_cs;
                       rec2_ready <= spifi_s_ready  and (not spifi_T);
         when x"03" => spifi_s_data <= rec3_data;
-                      spifi_s_valid <= rec3_valid;
+                      --spifi_s_valid <= rec3_valid;
                       rec3_rst <= spifi_cs;
                       rec3_ready <= spifi_s_ready  and (not spifi_T);
         when others => spifi_s_data <= rec0_data;
-                       spifi_s_valid <= rec0_valid;
+                       --spifi_s_valid <= rec0_valid;
                        rec0_rst <= spifi_cs;
                        rec0_ready <= spifi_s_ready  and (not spifi_T);
      end case;
@@ -440,7 +458,7 @@ spifi_module_inst : entity spifi_module
       PCS_O             => PCS_O,
 
       s_data            => spifi_s_data,
-      s_valid           => spifi_s_valid,
+--      s_valid           => spifi_s_valid,
       s_ready           => spifi_s_ready,
 
       cmd_byte          => spifi_cmd_byte,

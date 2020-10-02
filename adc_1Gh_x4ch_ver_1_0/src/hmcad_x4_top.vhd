@@ -147,7 +147,16 @@ architecture Behavioral of hmcad_x4_top is
     signal reg_address_int              : integer;
     
     signal adcx_calib_done              : std_logic_vector(3 downto 0);
-    signal adcx_data_valid              : std_logic_vector(3 downto 0);
+    signal adcx_tick_ms                 : std_logic_vector(3 downto 0);
+    signal adcx_tick_ms_d0              : std_logic_vector(3 downto 0);
+    signal adcx_tick_ms_d1              : std_logic_vector(3 downto 0);
+    
+    signal adcx_tick_ms_counter0        : integer := 0;
+    signal adcx_tick_ms_counter1        : integer := 0;
+    signal adcx_tick_ms_counter2        : integer := 0;
+    signal adcx_tick_ms_counter3        : integer := 0;
+
+    
     signal acfg_bits                    : std_logic_vector(15 downto 0);
     signal aext_trig                    : std_logic;
     signal trig_start                   : std_logic;
@@ -164,6 +173,7 @@ architecture Behavioral of hmcad_x4_top is
     
     constant calid_done_delay           : integer := 10000000;
     signal trigger_start_out            : std_logic;
+    signal spifi_sck_bufg               : std_logic;
 begin
 
 rst <= infrst_rst_out;
@@ -172,11 +182,68 @@ process(clk_125MHz, rst)
 begin
   if (rst = '1') then 
     hmcad_x4_block_rst <= '1';
+    adcx_tick_ms_counter0 <= 0;
+    adcx_tick_ms_counter1 <= 0;
+    adcx_tick_ms_counter2 <= 0;
+    adcx_tick_ms_counter3 <= 0;
   elsif rising_edge(clk_125MHz) then
+    adcx_tick_ms_d0 <= adcx_tick_ms;
+    adcx_tick_ms_d1 <= adcx_tick_ms_d0;
+    
+    if (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(0) = '1') then
+      if (((adcx_tick_ms_d0(0) = '0') and adcx_tick_ms_d1(0) = '1') or ((adcx_tick_ms_d0(0) = '1') and adcx_tick_ms_d1(0) = '0')) then
+        adcx_tick_ms_counter0 <= 0;
+      else
+        adcx_tick_ms_counter0 <= adcx_tick_ms_counter0 + 1;
+      end if;
+    else
+      adcx_tick_ms_counter0 <= 0;
+    end if;
+    
+    if (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(1) = '1') then
+      if (((adcx_tick_ms_d0(1) = '0') and adcx_tick_ms_d1(1) = '1') or ((adcx_tick_ms_d0(1) = '1') and adcx_tick_ms_d1(1) = '0')) then
+        adcx_tick_ms_counter1 <= 0;
+      else
+        adcx_tick_ms_counter1 <= adcx_tick_ms_counter1 + 1;
+      end if;
+    else
+      adcx_tick_ms_counter1 <= 0;
+    end if;
+    
+    if (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(2) = '1') then
+      if (((adcx_tick_ms_d0(2) = '0') and adcx_tick_ms_d1(2) = '1') or ((adcx_tick_ms_d0(2) = '1') and adcx_tick_ms_d1(2) = '0')) then
+        adcx_tick_ms_counter2 <= 0;
+      else
+        adcx_tick_ms_counter2 <= adcx_tick_ms_counter2 + 1;
+      end if;
+    else
+      adcx_tick_ms_counter2 <= 0;
+    end if;
+    
+    if (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(3) = '1') then
+      if (((adcx_tick_ms_d0(3) = '0') and adcx_tick_ms_d1(3) = '1') or ((adcx_tick_ms_d0(3) = '1') and adcx_tick_ms_d1(3) = '0')) then
+        adcx_tick_ms_counter3 <= 0;
+      else
+        adcx_tick_ms_counter3 <= adcx_tick_ms_counter3 + 1;
+      end if;
+    else
+      adcx_tick_ms_counter3 <= 0;
+    end if;
+    
     if (spi_rst_cmd = '1') then 
       hmcad_x4_block_rst <= '1';
---    elsif (adcx_active_status /= "0000") then
---      hmcad_x4_block_rst <= '1';
+    elsif (adcx_tick_ms_counter0 > 1250000) then
+      hmcad_x4_block_rst <= '1';
+      adcx_tick_ms_counter0 <= 0;
+    elsif (adcx_tick_ms_counter1 > 1250000) then
+      hmcad_x4_block_rst <= '1';
+      adcx_tick_ms_counter1 <= 0;
+    elsif (adcx_tick_ms_counter2 > 1250000) then
+      hmcad_x4_block_rst <= '1';
+      adcx_tick_ms_counter2 <= 0;
+    elsif (adcx_tick_ms_counter3 > 1250000) then
+      hmcad_x4_block_rst <= '1';
+      adcx_tick_ms_counter2 <= 0;
     else
       hmcad_x4_block_rst <= '0';
     end if;
@@ -300,6 +367,14 @@ OBUFDS_inst : OBUFDS
       I => pulse      -- Buffer input 
    );
 
+IBUFG_inst : IBUFG
+generic map (
+   IBUF_LOW_PWR => TRUE, -- Low power (TRUE) vs. performance (FALSE) setting for referenced I/O standards
+   IOSTANDARD => "DEFAULT")
+port map (
+   O => spifi_sck_bufg, -- Clock buffer output
+   I => spifi_sck  -- Clock buffer input (connect directly to top-level port)
+);
 
 hmcad_x4_block_inst : entity hmcad_x4_block
   Generic map (
@@ -350,13 +425,12 @@ hmcad_x4_block_inst : entity hmcad_x4_block
     adc3_dx_b_n             => adc3_dx_b_n,
 
     adcx_calib_done         => adcx_calib_done,
-    adcx_data_valid         => adcx_data_valid,
+    adcx_interrupt          => int_adcx,
+    adcx_tick_ms            => adcx_tick_ms,
 
     spifi_cs                => spifi_cs ,
-    spifi_sck               => spifi_sck,
+    spifi_sck               => spifi_sck_bufg,
     spifi_sio               => spifi_sio
   );
-
-  int_adcx <= adcx_data_valid;
 
 end Behavioral;

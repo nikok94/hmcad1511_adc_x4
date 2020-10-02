@@ -29,7 +29,7 @@ NET "adc0_lclk_n" LOC = J12;
 NET "adc0_lclk_n" IOSTANDARD = LVDS_25;
 NET "adc0_lclk_n" DIFF_TERM = "TRUE";
 
-NET "hmcad_x4_block_inst/adc0_deser_clk/rx_bufg_x1" TNM_NET = "lck0_div8";
+NET "hmcad_x4_block_inst/adc0_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/rx_bufg_x1" TNM_NET = "lck0_div8";
 TIMESPEC TS_lck0_div8 = PERIOD "lck0_div8" 8 ns HIGH 50 %;
 
 NET "adc0_fclk_p" LOC = J13;
@@ -367,6 +367,8 @@ NET "in_clk_20MHz" LOC = M9;
 NET "pulse_n" LOC = C8;
 NET "pulse_p" LOC = D8;
 
-
 NET "spifi_sck" CLOCK_DEDICATED_ROUTE = FALSE;
+
+
+
 

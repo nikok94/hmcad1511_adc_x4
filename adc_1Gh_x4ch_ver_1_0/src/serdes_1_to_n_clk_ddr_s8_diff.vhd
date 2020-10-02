@@ -43,152 +43,152 @@ end serdes_1_to_n_clk_ddr_s8_diff ;
 
 architecture arch_serdes_1_to_n_clk_ddr_s8_diff of serdes_1_to_n_clk_ddr_s8_diff is
 
---signal	ddly_m			: std_logic;     	-- Master output from IODELAY1
---signal	ddly_s			: std_logic;     	-- Slave output from IODELAY1
---signal	rx_clk_in 		: std_logic;		--
---signal	iob_data_in_p 		: std_logic;		--
---signal	iob_data_in_n 		: std_logic;		--
---signal	rx_clk_in_p 		: std_logic;		--
---signal	rx_clk_in_n 		: std_logic;		--
---signal	rx_bufio2_x1 		: std_logic;		--
-  signal div_clk          : std_logic;
-  signal clkin_ibufg        : std_logic;
+signal	ddly_m			: std_logic;     	-- Master output from IODELAY1
+signal	ddly_s			: std_logic;     	-- Slave output from IODELAY1
+signal	rx_clk_in 		: std_logic;		--
+signal	iob_data_in_p 		: std_logic;		--
+signal	iob_data_in_n 		: std_logic;		--
+signal	rx_clk_in_p 		: std_logic;		--
+signal	rx_clk_in_n 		: std_logic;		--
+signal	rx_bufio2_x1 		: std_logic;		--
+--  signal div_clk          : std_logic;
+--  signal clkin_ibufg        : std_logic;
 
 
---constant RX_SWAP_CLK  		: std_logic := '0' ;			-- pinswap mask for input clock (0 = no swap (default), 1 = swap). Allows input to be connected the wrong way round to ease PCB routing.
+constant RX_SWAP_CLK  		: std_logic := '0' ;			-- pinswap mask for input clock (0 = no swap (default), 1 = swap). Allows input to be connected the wrong way round to ease PCB routing.
 
 begin
 
---iob_clk_in : IBUFDS_DIFF_OUT generic map(
---	DIFF_TERM		=> DIFF_TERM)
---port map (
---	I    			=> clkin_p,
---	IB       		=> clkin_n,
---	O         		=> rx_clk_in_p,
---	OB         		=> rx_clk_in_n) ;
---
---iob_data_in_p <= rx_clk_in_p xor RX_SWAP_CLK ;		-- Invert clock as required
---iob_data_in_n <= rx_clk_in_n xor RX_SWAP_CLK ;		-- Invert clock as required
---
---
---iodelay_m : IODELAY2 generic map(
---	DATA_RATE      		=> "SDR", 			-- <SDR>, DDR
---	SIM_TAPDELAY_VALUE	=> 49,  			-- nominal tap delay (sim parameter only)
---	IDELAY_VALUE  		=> 0, 				-- {0 ... 255}
---	IDELAY2_VALUE 		=> 0, 				-- {0 ... 255}
---	ODELAY_VALUE  		=> 0, 				-- {0 ... 255}
---	IDELAY_MODE   		=> "NORMAL", 			-- "NORMAL", "PCI"
---	SERDES_MODE   		=> "MASTER", 			-- <NONE>, MASTER, SLAVE
---	IDELAY_TYPE   		=> "FIXED", 			-- "DEFAULT", "DIFF_PHASE_DETECTOR", "FIXED", "VARIABLE_FROM_HALF_MAX", "VARIABLE_FROM_ZERO"
---	COUNTER_WRAPAROUND 	=> "STAY_AT_LIMIT", 		-- <STAY_AT_LIMIT>, WRAPAROUND
---	DELAY_SRC     		=> "IDATAIN") 			-- "IO", "IDATAIN", "ODATAIN"
---port map (
---	IDATAIN  		=> iob_data_in_p, 		-- data from master IOB
---	TOUT     		=> open, 			-- tri-state signal to IOB
---	DOUT     		=> open, 			-- output data to IOB
---	T        		=> '1', 			-- tri-state control from OLOGIC/OSERDES2
---	ODATAIN  		=> '0', 			-- data from OLOGIC/OSERDES2
---	DATAOUT  		=> ddly_m, 			-- Output data 1 to ILOGIC/ISERDES2
---	DATAOUT2 		=> open,	 		-- Output data 2 to ILOGIC/ISERDES2
---	IOCLK0   		=> '0', 			-- High speed clock for calibration
---	IOCLK1   		=> '0', 			-- High speed clock for calibration
---	CLK      		=> '0', 			-- Fabric clock (GCLK) for control signals
---	CAL      		=> '0', 			-- Calibrate enable signal
---	INC      		=> '0', 			-- Increment counter
---	CE       		=> '0', 			-- Clock Enable
---	RST      		=> '0', 			-- Reset delay line to 1/2 max in this case
---	BUSY      		=> open) ;  			-- output signal indicating sync circuit has finished / calibration has finished
---
---
---iodelay_s : IODELAY2 generic map(
---	DATA_RATE      		=> "SDR", 			-- <SDR>, DDR
---	SIM_TAPDELAY_VALUE	=> 49,  			-- nominal tap delay (sim parameter only)
---	IDELAY_VALUE  		=> 0, 				-- {0 ... 255}
---	IDELAY2_VALUE 		=> 0, 				-- {0 ... 255}
---	ODELAY_VALUE  		=> 0, 				-- {0 ... 255}
---	IDELAY_MODE   		=> "NORMAL", 			-- "NORMAL", "PCI"
---	SERDES_MODE   		=> "SLAVE", 			-- <NONE>, MASTER, SLAVE
---	IDELAY_TYPE   		=> "FIXED", 			-- "DEFAULT", "DIFF_PHASE_DETECTOR", "FIXED", "VARIABLE_FROM_HALF_MAX", "VARIABLE_FROM_ZERO"
---	COUNTER_WRAPAROUND 	=> "STAY_AT_LIMIT", 		-- <STAY_AT_LIMIT>, WRAPAROUND
---	DELAY_SRC     		=> "IDATAIN") 			-- "IO", "IDATAIN", "ODATAIN"
---port map (
---	IDATAIN 		=> iob_data_in_n, 		-- data from slave IOB
---	TOUT     		=> open, 			-- tri-state signal to IOB
---	DOUT     		=> open, 			-- output data to IOB
---	T        		=> '1', 			-- tri-state control from OLOGIC/OSERDES2
---	ODATAIN  		=> '0', 			-- data from OLOGIC/OSERDES2
---	DATAOUT 		=> ddly_s, 			-- Output data 1 to ILOGIC/ISERDES2
---	DATAOUT2 		=> open,	 		-- Output data 2 to ILOGIC/ISERDES2
---	IOCLK0    		=> '0', 			-- High speed clock for calibration
---	IOCLK1   		=> '0', 			-- High speed clock for calibration
---	CLK      		=> '0', 			-- Fabric clock (GCLK) for control signals
---	CAL      		=> '0', 			-- Calibrate control signal, never needed as the slave supplies the clock input to the PLL
---	INC      		=> '0', 			-- Increment counter
---	CE       		=> '0', 			-- Clock Enable
---	RST      		=> '0', 			-- Reset delay line
---	BUSY      		=> open) ;			-- output signal indicating sync circuit has finished / calibration has finished
---
---bufg_pll_x1 : BUFG port map	(I => rx_bufio2_x1, O => rx_bufg_x1) ;
---
---bufio2_2clk_inst : BUFIO2_2CLK generic map(
---      DIVIDE			=> S)               		-- The DIVCLK divider divide-by value; default 1
---port map (
---      I				=> ddly_m,  			-- Input source clock 0 degrees
---      IB			=> ddly_s,  			-- Input source clock 0 degrees
---      IOCLK			=> rxioclkp,        		-- Output Clock for IO
---      DIVCLK			=> rx_bufio2_x1,                -- Output Divided Clock
---      SERDESSTROBE		=> rx_serdesstrobe) ;           -- Output SERDES strobe (Clock Enable)
---
---bufio2_inst : BUFIO2 generic map(
---      I_INVERT			=> FALSE,               	--
---      DIVIDE_BYPASS		=> FALSE,               	--
---      USE_DOUBLER		=> FALSE)               	--
---port map (
---      I				=> ddly_s,               	-- N_clk input from IDELAY
---      IOCLK			=> rxioclkn,        		-- Output Clock
---      DIVCLK			=> open,                	-- Output Divided Clock
---      SERDESSTROBE		=> open) ;           		-- Output SERDES strobe (Clock Enable)
---      
+iob_clk_in : IBUFDS_DIFF_OUT generic map(
+	DIFF_TERM		=> DIFF_TERM)
+port map (
+	I    			=> clkin_p,
+	IB       		=> clkin_n,
+	O         		=> rx_clk_in_p,
+	OB         		=> rx_clk_in_n) ;
 
-   IBUFGDS_inst : IBUFGDS
-   generic map (
-      DIFF_TERM => DIFF_TERM, -- Differential Termination 
-      IBUF_LOW_PWR => TRUE, -- Low power (TRUE) vs. performance (FALSE) setting for referenced I/O standards
-      IOSTANDARD => "DEFAULT")
-   port map (
-      O => clkin_ibufg,  -- Clock buffer output
-      I => clkin_p,  -- Diff_p clock buffer input (connect directly to top-level port)
-      IB => clkin_n -- Diff_n clock buffer input (connect directly to top-level port)
-   );
+iob_data_in_p <= rx_clk_in_p xor RX_SWAP_CLK ;		-- Invert clock as required
+iob_data_in_n <= rx_clk_in_n xor RX_SWAP_CLK ;		-- Invert clock as required
 
-div_clk_bufg_ins : BUFG port map ( I => div_clk, O => rx_bufg_x1 );
 
-BUFIO2_clk0_inst : BUFIO2
-   generic map (
-      DIVIDE => S,           -- DIVCLK divider (1,3-8)
-      DIVIDE_BYPASS => FALSE, -- Bypass the divider circuitry (TRUE/FALSE)
-      I_INVERT => FALSE,     -- Invert clock (TRUE/FALSE)
-      USE_DOUBLER => TRUE   -- Use doubler circuitry (TRUE/FALSE)
-   )
-   port map (
-      DIVCLK => div_clk,             -- 1-bit output: Divided clock output
-      IOCLK => rxioclkp,               -- 1-bit output: I/O output clock
-      SERDESSTROBE => rx_serdesstrobe, -- 1-bit output: Output SERDES strobe (connect to ISERDES2/OSERDES2)
-      I => clkin_ibufg                        -- 1-bit input: Clock input (connect to IBUFG)
-   );
+iodelay_m : IODELAY2 generic map(
+	DATA_RATE      		=> "SDR", 			-- <SDR>, DDR
+	SIM_TAPDELAY_VALUE	=> 49,  			-- nominal tap delay (sim parameter only)
+	IDELAY_VALUE  		=> 0, 				-- {0 ... 255}
+	IDELAY2_VALUE 		=> 0, 				-- {0 ... 255}
+	ODELAY_VALUE  		=> 0, 				-- {0 ... 255}
+	IDELAY_MODE   		=> "NORMAL", 			-- "NORMAL", "PCI"
+	SERDES_MODE   		=> "MASTER", 			-- <NONE>, MASTER, SLAVE
+	IDELAY_TYPE   		=> "FIXED", 			-- "DEFAULT", "DIFF_PHASE_DETECTOR", "FIXED", "VARIABLE_FROM_HALF_MAX", "VARIABLE_FROM_ZERO"
+	COUNTER_WRAPAROUND 	=> "STAY_AT_LIMIT", 		-- <STAY_AT_LIMIT>, WRAPAROUND
+	DELAY_SRC     		=> "IDATAIN") 			-- "IO", "IDATAIN", "ODATAIN"
+port map (
+	IDATAIN  		=> iob_data_in_p, 		-- data from master IOB
+	TOUT     		=> open, 			-- tri-state signal to IOB
+	DOUT     		=> open, 			-- output data to IOB
+	T        		=> '1', 			-- tri-state control from OLOGIC/OSERDES2
+	ODATAIN  		=> '0', 			-- data from OLOGIC/OSERDES2
+	DATAOUT  		=> ddly_m, 			-- Output data 1 to ILOGIC/ISERDES2
+	DATAOUT2 		=> open,	 		-- Output data 2 to ILOGIC/ISERDES2
+	IOCLK0   		=> '0', 			-- High speed clock for calibration
+	IOCLK1   		=> '0', 			-- High speed clock for calibration
+	CLK      		=> '0', 			-- Fabric clock (GCLK) for control signals
+	CAL      		=> '0', 			-- Calibrate enable signal
+	INC      		=> '0', 			-- Increment counter
+	CE       		=> '0', 			-- Clock Enable
+	RST      		=> '0', 			-- Reset delay line to 1/2 max in this case
+	BUSY      		=> open) ;  			-- output signal indicating sync circuit has finished / calibration has finished
 
-BUFIO2_clk1_inst : BUFIO2
-   generic map (
-      DIVIDE => S,           -- DIVCLK divider (1,3-8)
-      DIVIDE_BYPASS => FALSE, -- Bypass the divider circuitry (TRUE/FALSE)
-      I_INVERT => TRUE,     -- Invert clock (TRUE/FALSE)
-      USE_DOUBLER => FALSE   -- Use doubler circuitry (TRUE/FALSE)
-   )
-   port map (
-      DIVCLK => open,             -- 1-bit output: Divided clock output
-      IOCLK => rxioclkn,               -- 1-bit output: I/O output clock
-      SERDESSTROBE => open, -- 1-bit output: Output SERDES strobe (connect to ISERDES2/OSERDES2)
-      I => clkin_ibufg                        -- 1-bit input: Clock input (connect to IBUFG)
-   );
+
+iodelay_s : IODELAY2 generic map(
+	DATA_RATE      		=> "SDR", 			-- <SDR>, DDR
+	SIM_TAPDELAY_VALUE	=> 49,  			-- nominal tap delay (sim parameter only)
+	IDELAY_VALUE  		=> 0, 				-- {0 ... 255}
+	IDELAY2_VALUE 		=> 0, 				-- {0 ... 255}
+	ODELAY_VALUE  		=> 0, 				-- {0 ... 255}
+	IDELAY_MODE   		=> "NORMAL", 			-- "NORMAL", "PCI"
+	SERDES_MODE   		=> "SLAVE", 			-- <NONE>, MASTER, SLAVE
+	IDELAY_TYPE   		=> "FIXED", 			-- "DEFAULT", "DIFF_PHASE_DETECTOR", "FIXED", "VARIABLE_FROM_HALF_MAX", "VARIABLE_FROM_ZERO"
+	COUNTER_WRAPAROUND 	=> "STAY_AT_LIMIT", 		-- <STAY_AT_LIMIT>, WRAPAROUND
+	DELAY_SRC     		=> "IDATAIN") 			-- "IO", "IDATAIN", "ODATAIN"
+port map (
+	IDATAIN 		=> iob_data_in_n, 		-- data from slave IOB
+	TOUT     		=> open, 			-- tri-state signal to IOB
+	DOUT     		=> open, 			-- output data to IOB
+	T        		=> '1', 			-- tri-state control from OLOGIC/OSERDES2
+	ODATAIN  		=> '0', 			-- data from OLOGIC/OSERDES2
+	DATAOUT 		=> ddly_s, 			-- Output data 1 to ILOGIC/ISERDES2
+	DATAOUT2 		=> open,	 		-- Output data 2 to ILOGIC/ISERDES2
+	IOCLK0    		=> '0', 			-- High speed clock for calibration
+	IOCLK1   		=> '0', 			-- High speed clock for calibration
+	CLK      		=> '0', 			-- Fabric clock (GCLK) for control signals
+	CAL      		=> '0', 			-- Calibrate control signal, never needed as the slave supplies the clock input to the PLL
+	INC      		=> '0', 			-- Increment counter
+	CE       		=> '0', 			-- Clock Enable
+	RST      		=> '0', 			-- Reset delay line
+	BUSY      		=> open) ;			-- output signal indicating sync circuit has finished / calibration has finished
+
+bufg_pll_x1 : BUFG port map	(I => rx_bufio2_x1, O => rx_bufg_x1) ;
+
+bufio2_2clk_inst : BUFIO2_2CLK generic map(
+      DIVIDE			=> S)               		-- The DIVCLK divider divide-by value; default 1
+port map (
+      I				=> ddly_m,  			-- Input source clock 0 degrees
+      IB			=> ddly_s,  			-- Input source clock 0 degrees
+      IOCLK			=> rxioclkp,        		-- Output Clock for IO
+      DIVCLK			=> rx_bufio2_x1,                -- Output Divided Clock
+      SERDESSTROBE		=> rx_serdesstrobe) ;           -- Output SERDES strobe (Clock Enable)
+
+bufio2_inst : BUFIO2 generic map(
+      I_INVERT			=> FALSE,               	--
+      DIVIDE_BYPASS		=> FALSE,               	--
+      USE_DOUBLER		=> FALSE)               	--
+port map (
+      I				=> ddly_s,               	-- N_clk input from IDELAY
+      IOCLK			=> rxioclkn,        		-- Output Clock
+      DIVCLK			=> open,                	-- Output Divided Clock
+      SERDESSTROBE		=> open) ;           		-- Output SERDES strobe (Clock Enable)
+      
+
+--   IBUFGDS_inst : IBUFGDS
+--   generic map (
+--      DIFF_TERM => DIFF_TERM, -- Differential Termination 
+--      IBUF_LOW_PWR => TRUE, -- Low power (TRUE) vs. performance (FALSE) setting for referenced I/O standards
+--      IOSTANDARD => "DEFAULT")
+--   port map (
+--      O => clkin_ibufg,  -- Clock buffer output
+--      I => clkin_p,  -- Diff_p clock buffer input (connect directly to top-level port)
+--      IB => clkin_n -- Diff_n clock buffer input (connect directly to top-level port)
+--   );
+--
+--div_clk_bufg_ins : BUFG port map ( I => div_clk, O => rx_bufg_x1 );
+--
+--BUFIO2_clk0_inst : BUFIO2
+--   generic map (
+--      DIVIDE => S,           -- DIVCLK divider (1,3-8)
+--      DIVIDE_BYPASS => FALSE, -- Bypass the divider circuitry (TRUE/FALSE)
+--      I_INVERT => FALSE,     -- Invert clock (TRUE/FALSE)
+--      USE_DOUBLER => TRUE   -- Use doubler circuitry (TRUE/FALSE)
+--   )
+--   port map (
+--      DIVCLK => div_clk,             -- 1-bit output: Divided clock output
+--      IOCLK => rxioclkp,               -- 1-bit output: I/O output clock
+--      SERDESSTROBE => rx_serdesstrobe, -- 1-bit output: Output SERDES strobe (connect to ISERDES2/OSERDES2)
+--      I => clkin_ibufg                        -- 1-bit input: Clock input (connect to IBUFG)
+--   );
+--
+--BUFIO2_clk1_inst : BUFIO2
+--   generic map (
+--      DIVIDE => S,           -- DIVCLK divider (1,3-8)
+--      DIVIDE_BYPASS => FALSE, -- Bypass the divider circuitry (TRUE/FALSE)
+--      I_INVERT => TRUE,     -- Invert clock (TRUE/FALSE)
+--      USE_DOUBLER => FALSE   -- Use doubler circuitry (TRUE/FALSE)
+--   )
+--   port map (
+--      DIVCLK => open,             -- 1-bit output: Divided clock output
+--      IOCLK => rxioclkn,               -- 1-bit output: I/O output clock
+--      SERDESSTROBE => open, -- 1-bit output: Output SERDES strobe (connect to ISERDES2/OSERDES2)
+--      I => clkin_ibufg                        -- 1-bit input: Clock input (connect to IBUFG)
+--   );
 
 end arch_serdes_1_to_n_clk_ddr_s8_diff ;

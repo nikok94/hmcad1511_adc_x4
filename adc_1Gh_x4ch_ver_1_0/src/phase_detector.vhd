@@ -109,6 +109,7 @@ signal	incdec_data_im		: std_logic_vector(D-1 downto 0) ;
 signal	valid_data_im		: std_logic_vector(D-1 downto 0) ;
 signal	all_ce			: std_logic_vector(D-1 downto 0) ;
 signal	all_inc			: std_logic_vector(D-1 downto 0) ;
+signal rst_counter      : std_logic_vector(3 downto 0);
 
 begin
 
