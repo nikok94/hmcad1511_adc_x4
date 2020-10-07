@@ -35,7 +35,8 @@ use UNISIM.VComponents.all;
 library work;
 use work.serdes_1_to_n_clk_ddr_s8_diff;
 use work.serdes_1_to_n_data_ddr_s8_diff;
-use work.spifi_module;
+--use work.spifi_module;
+use work.QSPI_interconnect;
 use work.trigger_capture;
 use work.data_recorder;
 use work.hmcad_adc_block;
@@ -43,7 +44,8 @@ use work.hmcad_adc_block;
 
 entity hmcad_x4_block is
   generic (
-    c_max_num_data          : integer := 128
+    c_max_num_data          : integer := 128;
+    c_data_width            : integer := 64
   );
   Port (
     areset                  : in std_logic;
@@ -93,9 +95,16 @@ entity hmcad_x4_block is
     adcx_interrupt          : out std_logic_vector(3 downto 0);
     adcx_tick_ms            : out std_logic_vector(3 downto 0);
     
-    spifi_cs                : in std_logic;
-    spifi_sck               : in std_logic;
-    spifi_sio               : inout std_logic_vector(3 downto 0)
+    slave_x_clk             : out std_logic_vector(4 - 1 downto 0);
+    slave_x_valid           : out std_logic_vector(4 - 1 downto 0);
+    slave_x_ready           : in std_logic_vector(4 - 1 downto 0);
+    slave_x_data            : out std_logic_vector(4*c_data_width - 1 downto 0);
+    slave_x_cs_up           : in std_logic_vector(4 - 1 downto 0)--;
+--    
+--    
+--    spifi_cs                : in std_logic;
+--    spifi_sck               : in std_logic;
+--    spifi_sio               : inout std_logic_vector(3 downto 0)
 
     );
 end hmcad_x4_block;
@@ -103,7 +112,6 @@ end hmcad_x4_block;
 architecture Behavioral of hmcad_x4_block is
   constant C_BURST_WIDTH_SPIFI          : integer := 16;
   constant num_data                     : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0) := (others => '0');
-  constant c_data_width                 : integer := 64;
   constant bitslip_delay                : integer := 10;
   constant calid_done_delay             : integer := 10000000;
 
@@ -137,7 +145,6 @@ architecture Behavioral of hmcad_x4_block is
   signal start_offset                   : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
 
   signal state                          : integer;
-  signal gclk                           : std_logic;
   constant frame_sync_pattern           : std_logic_vector(7 downto 0) := x"0F";
   signal adcx_enable                    : std_logic_vector(3 downto 0) := "1111";
   signal TriggerSetUp_d                 : std_logic_vector(15 downto 0);
@@ -196,6 +203,7 @@ architecture Behavioral of hmcad_x4_block is
   signal rec2_irq                       : std_logic;
   signal rec3_irq                       : std_logic;
 
+
 begin
 
 adcx_enable <= ADCEnableReg(3 downto 0);
@@ -252,10 +260,10 @@ adc0_inst : entity hmcad_adc_block
     tick_ms               => adcx_tick_ms(0),
     
     recorder_interrupt    => adcx_interrupt(0),
-    recorder_rst          => rec0_rst,
+    recorder_rst          => slave_x_cs_up(0),
     recorder_data         => rec0_data,
     recorder_valid        => rec0_valid,
-    recorder_ready        => rec0_ready,
+    recorder_ready        => slave_x_ready(0),
     recorder_offset       => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0)
   );
 
@@ -289,10 +297,10 @@ adc1_inst : entity hmcad_adc_block
     tick_ms               => adcx_tick_ms(1),
 
     recorder_interrupt    => adcx_interrupt(1),
-    recorder_rst          => rec1_rst,
+    recorder_rst          => slave_x_cs_up(1),
     recorder_data         => rec1_data,
     recorder_valid        => rec1_valid,
-    recorder_ready        => rec1_ready,
+    recorder_ready        => slave_x_ready(1),
     recorder_offset       => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0)
   );
 
@@ -326,10 +334,10 @@ adc2_inst : entity hmcad_adc_block
     tick_ms               => adcx_tick_ms(2),
     
     recorder_interrupt    => adcx_interrupt(2),
-    recorder_rst          => rec2_rst,
+    recorder_rst          => slave_x_cs_up(2),
     recorder_data         => rec2_data,
     recorder_valid        => rec2_valid,
-    recorder_ready        => rec2_ready,
+    recorder_ready        => slave_x_ready(2),
     recorder_offset       => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0)
   );
 
@@ -363,105 +371,125 @@ adc3_inst : entity hmcad_adc_block
     tick_ms               => adcx_tick_ms(3),
 
     recorder_interrupt    => adcx_interrupt(3),
-    recorder_rst          => rec3_rst,
+    recorder_rst          => slave_x_cs_up(3),
     recorder_data         => rec3_data,
     recorder_valid        => rec3_valid,
-    recorder_ready        => rec3_ready,
+    recorder_ready        => slave_x_ready(3),
     recorder_offset       => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0)
   );
 
---adc0_gclk <= adc0_gclk_out;
---adc1_gclk <= adc0_gclk_out;
---adc2_gclk <= adc0_gclk_out;
---adc3_gclk <= adc0_gclk_out;
-
 adc0_gclk <= adc0_gclk_out;
-adc1_gclk <= adc1_gclk_out;
-adc2_gclk <= adc2_gclk_out;
-adc3_gclk <= adc3_gclk_out;
+adc1_gclk <= adc0_gclk_out;
+adc2_gclk <= adc0_gclk_out;
+adc3_gclk <= adc0_gclk_out;
+
+--adc0_gclk <= adc0_gclk_out;
+--adc1_gclk <= adc1_gclk_out;
+--adc2_gclk <= adc2_gclk_out;
+--adc3_gclk <= adc3_gclk_out;
+
+--spifi_sio <= PCS_O when spifi_T = '0' else (others => 'Z');
+--
+--PCS_I <= spifi_sio;
+
+-- spifi_switch_byte_switch_proc :
+--   process(spifi_sck, spifi_cs)
+--   begin
+--     if (spifi_cs = '1') then 
+--       spifi_T <= '1';
+--       spifi_cmd_counter <= '0';
+--     elsif rising_edge(spifi_sck) then
+--       if (spifi_cmd_valid = '1') then
+-- 
+--         if (spifi_cmd_counter = '0') then
+--           spifi_cmd_counter <= '1';
+--           spifi_switch_byte <= spifi_cmd_byte;
+--           spifi_T <= '0'; 
+--         end if;
+-- 
+--       end if;
+--     end if;
+--   end process;
+--
+
+--QSPI_interconnect_inst : entity QSPI_interconnect
+--  Generic map(
+--    c_num_slave_port    => 4,
+--    c_data_width        => c_data_width,
+--    c_command_width     => 8,
+--    C_CPHA              => '0',
+--    C_CPOL              => '0',
+--    C_LSB_FIRST         => true
+--  )
+--  Port map(
+--    slave_x_clk         => slave_x_clk  ,
+--    slave_x_ready       => slave_x_ready,
+--    slave_x_data        => slave_x_data ,
+--    slave_x_cs_up       => slave_x_cs_up,
+--    qspi_sio            => spifi_sio,
+--    qspi_sck            => spifi_sck,
+--    qspi_cs             => spifi_cs
+--  );
+
+slave_x_valid <= rec3_valid & rec2_valid & rec1_valid & rec0_valid;
+slave_x_clk <= adc3_gclk & adc2_gclk & adc1_gclk & adc0_gclk;
+slave_x_data <= rec3_data & rec2_data & rec1_data & rec0_data;
 
 
-gclk <= adc0_gclk_out;
-
-
-
-spifi_sio <= PCS_O when spifi_T = '0' else (others => 'Z');
-
-PCS_I <= spifi_sio;
-
-spifi_switch_byte_switch_proc :
-  process(spifi_sck, spifi_cs)
-  begin
-    if (spifi_cs = '1') then 
-      spifi_T <= '1';
-      spifi_cmd_counter <= '0';
-    elsif rising_edge(spifi_sck) then
-      if (spifi_cmd_valid = '1') then
-
-        if (spifi_cmd_counter = '0') then
-          spifi_cmd_counter <= '1';
-          spifi_switch_byte <= spifi_cmd_byte;
-          spifi_T <= '0'; 
-        end if;
-
-      end if;
-    end if;
-  end process;
-
-spifi_mux_data_process :
-  process (spifi_switch_byte, rec0_data, rec1_data, rec2_data, rec3_data, spifi_cs, spifi_s_ready, spifi_T)
-  begin
-    rec0_rst <= '0';
-    rec1_rst <= '0';
-    rec2_rst <= '0';
-    rec3_rst <= '0';
-    rec0_ready <= '0';
-    rec1_ready <= '0';
-    rec2_ready <= '0';
-    rec3_ready <= '0';
-     case spifi_switch_byte is
-        when x"00" => spifi_s_data <= rec0_data;
-                      --spifi_s_valid <= rec0_valid;
-                      rec0_rst <= spifi_cs;
-                      rec0_ready <= spifi_s_ready and (not spifi_T);
-        when x"01" => spifi_s_data <= rec1_data;
-                      --spifi_s_valid <= rec1_valid;
-                      rec1_rst <= spifi_cs;
-                      rec1_ready <= spifi_s_ready  and (not spifi_T);
-        when x"02" => spifi_s_data <= rec2_data;
-                      --spifi_s_valid <= rec2_valid;
-                      rec2_rst <= spifi_cs;
-                      rec2_ready <= spifi_s_ready  and (not spifi_T);
-        when x"03" => spifi_s_data <= rec3_data;
-                      --spifi_s_valid <= rec3_valid;
-                      rec3_rst <= spifi_cs;
-                      rec3_ready <= spifi_s_ready  and (not spifi_T);
-        when others => spifi_s_data <= rec0_data;
-                       --spifi_s_valid <= rec0_valid;
-                       rec0_rst <= spifi_cs;
-                       rec0_ready <= spifi_s_ready  and (not spifi_T);
-     end case;
-  end process;
-
-spifi_module_inst : entity spifi_module
-    generic map(
-      C_CPHA            => '0',
-      C_CPOL            => '0',
-      C_LSB_FIRST       => false,
-      C_NUM_QBURST      => C_BURST_WIDTH_SPIFI
-    )
-    port map( 
-      SCK               => spifi_sck,
-      CS                => spifi_cs,
-
-      PCS_I             => PCS_I,
-      PCS_O             => PCS_O,
-
-      s_data            => spifi_s_data,
---      s_valid           => spifi_s_valid,
-      s_ready           => spifi_s_ready,
-
-      cmd_byte          => spifi_cmd_byte,
-      cmd_valid         => spifi_cmd_valid
-    );
+--spifi_mux_data_process :
+--  process (spifi_switch_byte, rec0_data, rec1_data, rec2_data, rec3_data, spifi_cs, spifi_s_ready, spifi_T)
+--  begin
+--    rec0_rst <= '0';
+--    rec1_rst <= '0';
+--    rec2_rst <= '0';
+--    rec3_rst <= '0';
+--    rec0_ready <= '0';
+--    rec1_ready <= '0';
+--    rec2_ready <= '0';
+--    rec3_ready <= '0';
+--     case spifi_switch_byte is
+--        when x"00" => spifi_s_data <= rec0_data;
+--                      --spifi_s_valid <= rec0_valid;
+--                      rec0_rst <= spifi_cs;
+--                      rec0_ready <= spifi_s_ready and (not spifi_T);
+--        when x"01" => spifi_s_data <= rec1_data;
+--                      --spifi_s_valid <= rec1_valid;
+--                      rec1_rst <= spifi_cs;
+--                      rec1_ready <= spifi_s_ready  and (not spifi_T);
+--        when x"02" => spifi_s_data <= rec2_data;
+--                      --spifi_s_valid <= rec2_valid;
+--                      rec2_rst <= spifi_cs;
+--                      rec2_ready <= spifi_s_ready  and (not spifi_T);
+--        when x"03" => spifi_s_data <= rec3_data;
+--                      --spifi_s_valid <= rec3_valid;
+--                      rec3_rst <= spifi_cs;
+--                      rec3_ready <= spifi_s_ready  and (not spifi_T);
+--        when others => spifi_s_data <= rec0_data;
+--                       --spifi_s_valid <= rec0_valid;
+--                       rec0_rst <= spifi_cs;
+--                       rec0_ready <= spifi_s_ready  and (not spifi_T);
+--     end case;
+--  end process;
+--
+--spifi_module_inst : entity spifi_module
+--    generic map(
+--      C_CPHA            => '0',
+--      C_CPOL            => '0',
+--      C_LSB_FIRST       => true,
+--      C_NUM_QBURST      => C_BURST_WIDTH_SPIFI
+--    )
+--    port map( 
+--      SCK               => spifi_sck,
+--      CS                => spifi_cs,
+--
+--      PCS_I             => PCS_I,
+--      PCS_O             => PCS_O,
+--
+--      s_data            => spifi_s_data,
+----      s_valid           => spifi_s_valid,
+--      s_ready           => spifi_s_ready,
+--
+--      cmd_byte          => spifi_cmd_byte,
+--      cmd_valid         => spifi_cmd_valid
+--    );
 end Behavioral;

@@ -98,7 +98,8 @@ architecture Behavioral of hmcad_adc_block is
     bitslip                 :  in std_logic ;                               -- Bitslip control line
     data_out                : out std_logic_vector((D*S)-1 downto 0) ;      -- Output data
     debug_in                :  in std_logic_vector(1 downto 0) ;            -- Debug Inputs, set to '0' if not required
-    debug                   : out std_logic_vector((2*D)+6 downto 0)        -- Debug output bus, 3D+5 = 3 lines per input (from inc, mux and ce) + 6, leave nc if debug not required
+    debug                   : out std_logic_vector((2*D)+6 downto 0)--;        -- Debug output bus, 3D+5 = 3 lines per input (from inc, mux and ce) + 6, leave nc if debug not required
+    --stat_out                : out std_logic_vector(8*D-1 downto 0)
     ) ;
   end component serdes_1_to_n_data_ddr_s8_diff;
 
@@ -119,8 +120,8 @@ architecture Behavioral of hmcad_adc_block is
   signal recorder_rst_all               : std_logic;
   signal data                           : std_logic_vector(63 downto 0);
   signal data_valid                     : std_logic;
-  signal recorder_rst_dvec              : std_logic_vector(3 downto 0);
-  signal recorder_rdy_dvec              : std_logic_vector(1 downto 0);
+  signal recorder_rst_dvec              : std_logic_vector(2 downto 0);
+  signal recorder_rdy_dvec              : std_logic_vector(2 downto 0);
   signal recorder_rst_sync              : std_logic;
   signal recorder_rdy_sync              : std_logic;
   signal trigger_capture_rst            : std_logic;
@@ -248,7 +249,7 @@ begin
       when 0 =>
         bs_counter <= (others => '0');
         deser_rst <= '0';
-        if (tick_counter < 12500000) then
+        if (tick_counter < 125) then
           tick_counter <= tick_counter + 1;
         else
           state <= 1;
@@ -323,17 +324,16 @@ serdes_1_to_n_data_ddr_s8_diff_inst : serdes_1_to_n_data_ddr_s8_diff
     bitslip               => deser_bitslip,
     debug_in              => "00",
     data_out              => deser_data_out,
-    debug                 => open
+    debug                 => open--,
+--    stat_out              => open
   );
 
-i_gen : for i in 0 to 8 generate
-  j_gen : for j in 0 to 7 generate
-    deser_data_out_rev(8*i + j) <= deser_data_out(8*i + 7 - j);
-  end generate j_gen;
-end generate i_gen;
---  deser_data_out_rev <= deser_data_out;
-
-  
+--i_gen : for i in 0 to 8 generate
+--  j_gen : for j in 0 to 7 generate
+--    deser_data_out_rev(8*i + j) <= deser_data_out(8*i + 7 - j);
+--  end generate j_gen;
+--end generate i_gen;
+deser_data_out_rev <= deser_data_out;
 
 process (gclk)
 begin
@@ -347,27 +347,16 @@ end process;
 sync_process : process(areset, gclk)
 begin
   if (areset = '1') then
-    recorder_rdy_dvec <= (others => '0');
-    recorder_rst_dvec <= (others => '0');
-    recorder_rdy_sync <= '0';
-    recorder_rst_sync <= '1';
+    trigger_in_dvec <= (others => '0');
   elsif rising_edge(gclk) then
     trigger_in_dvec(0) <= trigger_in;
     trigger_in_dvec(trigger_in_dvec'length - 1 downto 1) <= trigger_in_dvec(trigger_in_dvec'length - 2 downto 0);
     recorder_start <= (not trigger_in_dvec(trigger_in_dvec'length - 1) and (trigger_in_dvec(trigger_in_dvec'length - 2)));
-    
-    recorder_rdy_dvec(0) <= recorder_ready;
-    recorder_rdy_dvec(recorder_rdy_dvec'length - 1 downto 1) <= recorder_rdy_dvec(recorder_rdy_dvec'length - 2 downto 0);
-    recorder_rdy_sync <= (recorder_rdy_dvec(recorder_rdy_dvec'length - 1) and (not recorder_rdy_dvec(recorder_rdy_dvec'length - 2)));
-  
-    recorder_rst_dvec(0) <= recorder_rst;
-    recorder_rst_dvec(recorder_rst_dvec'length - 1 downto 1) <= recorder_rst_dvec(recorder_rst_dvec'length - 2 downto 0);
-    recorder_rst_sync <= (not recorder_rst_dvec(recorder_rst_dvec'length - 1) and (recorder_rst_dvec(recorder_rst_dvec'length - 2)));
+
   end if;
 end process;
 
-recorder_rst_all <= (recorder_rst_sync or areset or (not enable));
-
+recorder_rst_all <= (recorder_rst or areset or (not enable));
 
 data_recorder_inst : entity data_recorder
   generic map(
@@ -388,7 +377,7 @@ data_recorder_inst : entity data_recorder
 
     m_data                    => recorder_data,
     m_valid                   => rec_valid,
-    m_ready                   => recorder_rdy_sync,
+    m_ready                   => recorder_ready,
     
     compleat                  => open
   );

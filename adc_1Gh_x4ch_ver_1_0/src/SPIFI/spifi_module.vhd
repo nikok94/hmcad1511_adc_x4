@@ -8,7 +8,7 @@ use IEEE.STD_LOGIC_unsigned.ALL;
 library work;
 use work.spi_data_receiver;
 
- entity spifi_module is
+entity spifi_module is
     generic (
       C_CPHA            : std_logic := '0';
       C_CPOL            : std_logic := '0';
@@ -36,8 +36,7 @@ architecture Behavioral of spifi_module is
   signal ssck_rising_edge   : std_logic;
   signal ssck_falling_edge  : std_logic;
   signal ssck_sync_vector   : std_logic_vector(2 downto 0);
-  signal qcounter_r         : integer;
-  signal qcounter_f         : integer;
+  signal qcounter           : integer;
   signal ready              : std_logic;
   signal treg               : std_logic_vector(C_NUM_QBURST*4 - 1 downto 0);
 
@@ -65,98 +64,50 @@ mode <= c_cpol XOR c_cpha;
             SCK WHEN OTHERS;
 
 true_gen_proc : if C_LSB_FIRST = true generate
-
-  process(ssck, cs) 
-  begin
-    if (cs = '1') then
-      qcounter_f <= C_NUM_QBURST;
-      treg <= (others => '1');
-    elsif falling_edge(ssck) then
-      if (qcounter_f < C_NUM_QBURST - 1) then
-        qcounter_f <= qcounter_f + 1;
-        treg(treg'length - 5 downto 0) <= treg(treg'length - 1 downto 4);
-        treg(treg'length - 1 downto treg'length - 4) <= (others => '1');
-      else
-        qcounter_f <= 0;
-        treg <= s_data;
-      end if;
-    end if;
-  end process;
-  
+ready_proc:
   process(ssck, cs) 
   begin
     if (cs = '1') then
       ready <= '0';
-      qcounter_r <= 0;
-    elsif rising_edge(ssck) then
-      if (qcounter_r < C_NUM_QBURST - 1) then
-        qcounter_r <= qcounter_r + 1;
+      qcounter <= C_NUM_QBURST;
+      treg <= (others => '1');
+    elsif falling_edge(ssck) then
+      if (qcounter < C_NUM_QBURST - 1) then
+        qcounter <= qcounter + 1;
+        treg(treg'length - 5 downto 0) <= treg(treg'length - 1 downto 4);
+        treg(treg'length - 1 downto treg'length - 4) <= (others => '1');
         ready <= '0';
       else
         ready <= '1';
-        qcounter_r <= 0;
+        qcounter <= 0;
+        treg <= s_data;
       end if;
     end if;
   end process;
-  
   PCS_O <= treg(3 downto 0);
 end generate;
 
 false_gen_proc : if C_LSB_FIRST = false generate
---ready_proc:
---  process(ssck, cs) 
---  begin
---    if (cs = '1') then
---      ready <= '0';
---      qcounter <= C_NUM_QBURST;
---      treg <= (others => '1');
---    elsif rising_edge(ssck) then
---      if (qcounter < C_NUM_QBURST - 1) then
---        qcounter <= qcounter + 1;
---        treg(treg'length - 1 downto 4) <= treg(treg'length - 5 downto 0);
---        treg(3 downto 0) <= (others => '1');
---        ready <= '0';
---      else
---        ready <= '1';
---        qcounter <= 0;
---        treg <= s_data;
---      end if;
---    end if;
---  end process;
-
-  process(ssck, cs)
-  begin
-  if (cs = '1') then
-      qcounter_f <= C_NUM_QBURST;
-      treg <= (others => '1');
-    elsif falling_edge(ssck) then
-      if (qcounter_f < C_NUM_QBURST - 1) then
-        qcounter_f <= qcounter_f + 1;
-        treg(treg'length - 1 downto 4) <= treg(treg'length - 5 downto 0);
-        treg(3 downto 0) <= (others => '1');
-      else
-        qcounter_f <= 0;
-        treg <= s_data;
-      end if;
-    end if;
-  end process;
-  
+ready_proc:
   process(ssck, cs) 
   begin
     if (cs = '1') then
       ready <= '0';
-      qcounter_r <= 0;
-    elsif rising_edge(ssck) then
-      if (qcounter_r < C_NUM_QBURST - 1) then
-        qcounter_r <= qcounter_r + 1;
+      qcounter <= C_NUM_QBURST;
+      treg <= (others => '1');
+    elsif falling_edge(ssck) then
+      if (qcounter < C_NUM_QBURST - 1) then
+        qcounter <= qcounter + 1;
+        treg(treg'length - 1 downto 4) <= treg(treg'length - 5 downto 0);
+        treg(3 downto 0) <= (others => '1');
         ready <= '0';
       else
         ready <= '1';
-        qcounter_r <= 0;
+        qcounter <= 0;
+        treg <= s_data;
       end if;
     end if;
   end process;
-  
   PCS_O <= treg(treg'length - 1 downto treg'length - 4);
 end generate;
 

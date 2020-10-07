@@ -273,9 +273,13 @@ port map (
 	INCDEC 			=> open,
 	SHIFTOUT 		=> pd_edge(i));
 
-loop1 : for j in 7 downto (8-S) generate
-data_out(((D*(j+S-8))+i)) <= mdataout((8*i)+j) ;
+--loop1 : for j in 7 downto (8-S) generate
+--data_out(((D*(j+S-8))+i)) <= mdataout((8*i)+j) ;
+--end generate ;
+data_out(i*S + S - 1 downto i*S) <= mdataout(S*i + S - 1 downto S*i);
+
 end generate ;
-end generate ;
+
+
 
 end arch_serdes_1_to_n_data_ddr_s8_diff ;

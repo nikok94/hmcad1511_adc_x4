@@ -1,6 +1,80 @@
-NET "spifi_sio[3]" IOSTANDARD = LVCMOS25;
-NET "i2c_scl" IOSTANDARD = LVCMOS25;
-NET "int_adcx[3]" IOSTANDARD = LVCMOS25;
+NET "spifi_sck" IOSTANDARD = LVCMOS33;
+NET "spifi_sio[2]" IOSTANDARD = LVCMOS33;
+NET "i2c_sda" IOSTANDARD = LVCMOS33;
+NET "spifi_sio[1]" IOSTANDARD = LVCMOS33;
+NET "spifi_sio[0]" IOSTANDARD = LVCMOS33;
+NET "dd[5]" IOSTANDARD = LVCMOS33;
+NET "dd[7]" IOSTANDARD = LVCMOS33;
+NET "dd[3]" IOSTANDARD = LVCMOS33;
+NET "spifi_cs" IOSTANDARD = LVCMOS33;
+NET "dd[1]" IOSTANDARD = LVCMOS33;
+NET "dd[2]" IOSTANDARD = LVCMOS33;
+NET "dd[4]" IOSTANDARD = LVCMOS33;
+NET "dd[0]" IOSTANDARD = LVCMOS33;
+NET "dd[6]" IOSTANDARD = LVCMOS33;
+NET "clk_dd" IOSTANDARD = LVCMOS33;
+NET "int_adcx[2]" IOSTANDARD = LVCMOS33;
+NET "int_adcx[1]" IOSTANDARD = LVCMOS33;
+NET "int_adcx[0]" IOSTANDARD = LVCMOS33;
+NET "cs_dd" IOSTANDARD = LVCMOS33;
+NET "pulse_p" IOSTANDARD = LVDS_33;
+NET "pulse_n" IOSTANDARD = LVDS_33;
+NET "i2c_scl" DRIVE = 12;
+NET "spifi_sck" DRIVE = 12;
+NET "spifi_sio[3]" DRIVE = 12;
+NET "spifi_sio[2]" DRIVE = 12;
+NET "i2c_sda" DRIVE = 12;
+NET "spifi_sio[1]" DRIVE = 12;
+NET "spifi_sio[0]" DRIVE = 12;
+NET "dd[5]" DRIVE = 12;
+NET "dd[7]" DRIVE = 12;
+NET "dd[3]" DRIVE = 12;
+NET "spifi_cs" DRIVE = 12;
+NET "dd[1]" DRIVE = 12;
+NET "dd[2]" DRIVE = 12;
+NET "fpga_sck" DRIVE = 12;
+NET "fpga_miso" DRIVE = 12;
+NET "dd[4]" DRIVE = 12;
+NET "fpga_mosi" DRIVE = 12;
+NET "fpga_cs" DRIVE = 12;
+NET "int_adcx[3]" DRIVE = 12;
+NET "dd[0]" DRIVE = 12;
+NET "dd[6]" DRIVE = 12;
+NET "clk_dd" DRIVE = 12;
+NET "int_adcx[2]" DRIVE = 12;
+NET "int_adcx[1]" DRIVE = 12;
+NET "int_adcx[0]" DRIVE = 12;
+NET "cs_dd" DRIVE = 12;
+NET "i2c_scl" SLEW = SLOW;
+NET "spifi_sck" SLEW = SLOW;
+NET "spifi_sio[3]" SLEW = SLOW;
+NET "spifi_sio[2]" SLEW = SLOW;
+NET "i2c_sda" SLEW = SLOW;
+NET "spifi_sio[1]" SLEW = SLOW;
+NET "spifi_sio[0]" SLEW = SLOW;
+NET "dd[5]" SLEW = SLOW;
+NET "dd[7]" SLEW = SLOW;
+NET "dd[3]" SLEW = SLOW;
+NET "spifi_cs" SLEW = SLOW;
+NET "dd[1]" SLEW = SLOW;
+NET "dd[2]" SLEW = SLOW;
+NET "fpga_sck" SLEW = SLOW;
+NET "fpga_miso" SLEW = SLOW;
+NET "dd[4]" SLEW = SLOW;
+NET "fpga_mosi" SLEW = SLOW;
+NET "fpga_cs" SLEW = SLOW;
+NET "int_adcx[3]" SLEW = SLOW;
+NET "dd[0]" SLEW = SLOW;
+NET "dd[6]" SLEW = SLOW;
+NET "clk_dd" SLEW = SLOW;
+NET "pulse_n" SLEW = SLOW;
+NET "int_adcx[2]" SLEW = SLOW;
+NET "int_adcx[1]" SLEW = SLOW;
+NET "int_adcx[0]" SLEW = SLOW;
+NET "cs_dd" SLEW = SLOW;
+NET "spifi_sio[3]" IOSTANDARD = LVCMOS33;
+NET "i2c_scl" IOSTANDARD = LVCMOS33;
+NET "int_adcx[3]" IOSTANDARD = LVCMOS33;
 ##########################################################################
 ##  Clock pin inst
 ##########################################################################
@@ -328,13 +402,13 @@ NET "adc3_dx_b_n[3]" DIFF_TERM = "TRUE";
 #############################################################################
 
 NET "fpga_mosi" LOC = A9;
-NET "fpga_mosi" IOSTANDARD = LVCMOS25;
+NET "fpga_mosi" IOSTANDARD = LVCMOS33;
 NET "fpga_miso" LOC = A8;
-NET "fpga_miso" IOSTANDARD = LVCMOS25;
+NET "fpga_miso" IOSTANDARD = LVCMOS33;
 NET "fpga_cs" LOC = B10;
-NET "fpga_cs" IOSTANDARD = LVCMOS25;
+NET "fpga_cs" IOSTANDARD = LVCMOS33;
 NET "fpga_sck" LOC = B8;
-NET "fpga_sck" IOSTANDARD = LVCMOS25;
+NET "fpga_sck" IOSTANDARD = LVCMOS33;
 
 ###############################################################################
 ## QSPI
@@ -368,7 +442,7 @@ NET "pulse_n" LOC = C8;
 NET "pulse_p" LOC = D8;
 
 NET "spifi_sck" CLOCK_DEDICATED_ROUTE = FALSE;
-
+PIN "spifi_sck_bufg_BUFG.O" CLOCK_DEDICATED_ROUTE = FALSE;
 
 
 

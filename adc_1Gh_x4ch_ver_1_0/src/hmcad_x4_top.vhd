@@ -37,6 +37,9 @@ library work;
 use work.clock_generator;
 use work.spi_adc_250x4_master;
 use work.hmcad_x4_block;
+use work.QSPI_interconnect;
+--use work.aFifo;
+
 
 entity hmcad_x4_top is
     Port (
@@ -147,6 +150,7 @@ architecture Behavioral of hmcad_x4_top is
     signal reg_address_int              : integer;
     
     signal adcx_calib_done              : std_logic_vector(3 downto 0);
+    signal adcx_calib_done_d            : std_logic_vector(3 downto 0);
     signal adcx_tick_ms                 : std_logic_vector(3 downto 0);
     signal adcx_tick_ms_d0              : std_logic_vector(3 downto 0);
     signal adcx_tick_ms_d1              : std_logic_vector(3 downto 0);
@@ -174,6 +178,29 @@ architecture Behavioral of hmcad_x4_top is
     constant calid_done_delay           : integer := 10000000;
     signal trigger_start_out            : std_logic;
     signal spifi_sck_bufg               : std_logic;
+    
+    signal hmcad_x_clk                  : std_logic_vector(4 - 1 downto 0);
+    signal hmcad_x_valid                : std_logic_vector(4 - 1 downto 0);
+    signal hmcad_x_ready                : std_logic_vector(4 - 1 downto 0);
+    signal hmcad_x_data                 : std_logic_vector(4*64 - 1 downto 0);
+    signal hmcad_x_int                  : std_logic_vector(4 - 1 downto 0);
+    
+    signal qspi_x_clk                   : std_logic_vector(4 - 1 downto 0);
+    signal qspi_x_cs_up                 : std_logic_vector(4 - 1 downto 0);
+    signal qspi_x_ready                 : std_logic_vector(4 - 1 downto 0);
+    signal qspi_x_data                  : std_logic_vector(4*64 - 1 downto 0);
+    
+    signal fifo_full_out                : std_logic_vector(4 - 1 downto 0);
+    signal fifo_empty_out               : std_logic_vector(4 - 1 downto 0);
+    
+    --signal slave_x_clk                  : std_logic_vector(3 - 1 downto 0);
+    --signal slave_x_ready                : std_logic_vector(3 - 1 downto 0);
+    --signal slave_x_data                 : std_logic_vector(3*64 - 1 downto 0);
+    --signal slave_x_cs_up                : std_logic_vector(3 - 1 downto 0);
+    --
+    --signal dds                           : std_logic_vector(7 downto 0);
+    
+    
 begin
 
 rst <= infrst_rst_out;
@@ -250,8 +277,14 @@ begin
   end if;
 end process;
 
-dd(0) <= pll_lock;
-dd(1) <= adcx_calib_done(3) and adcx_calib_done(2) and adcx_calib_done(1) and adcx_calib_done(0);
+process(clk_125MHz)
+begin
+  if rising_edge(clk_125MHz) then
+    adcx_calib_done_d <= adcx_calib_done;
+    dd(1) <= adcx_calib_done_d(3) and adcx_calib_done_d(2) and adcx_calib_done_d(1) and adcx_calib_done_d(0);
+    dd(0) <= pll_lock;
+  end if;
+end process;
 
 dd(dd'length - 1 downto 2) <= (others => 'Z');
 
@@ -381,13 +414,13 @@ hmcad_x4_block_inst : entity hmcad_x4_block
     c_max_num_data         => 32
   )
   Port map(
-    areset                 => hmcad_x4_block_rst,
-    TriggerSetUp           => SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp)),
-    ADCEnableReg           => SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg)),
-    TriggerPositionSetUp   => SPIRegisters(SPIRegistersStrucrure'pos(TriggerPositionSetUp)),
-    mode                   => trigger_mode,
-    start                  => trigger_start,
-    
+    areset                  => hmcad_x4_block_rst,
+    TriggerSetUp            => SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp)),
+    ADCEnableReg            => SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg)),
+    TriggerPositionSetUp    => SPIRegisters(SPIRegistersStrucrure'pos(TriggerPositionSetUp)),
+    mode                    => trigger_mode,
+    start                   => trigger_start,
+
     adc0_lclk_p             => adc0_lclk_p,
     adc0_lclk_n             => adc0_lclk_n,
     adc0_fclk_p             => adc0_fclk_p,
@@ -423,14 +456,73 @@ hmcad_x4_block_inst : entity hmcad_x4_block
     adc3_dx_a_n             => adc3_dx_a_n,
     adc3_dx_b_p             => adc3_dx_b_p,
     adc3_dx_b_n             => adc3_dx_b_n,
+    
+    slave_x_clk             => hmcad_x_clk  ,
+    slave_x_valid           => hmcad_x_valid,
+    slave_x_ready           => hmcad_x_ready,
+    slave_x_data            => hmcad_x_data ,
+    slave_x_cs_up           => qspi_x_cs_up,
 
     adcx_calib_done         => adcx_calib_done,
-    adcx_interrupt          => int_adcx,
-    adcx_tick_ms            => adcx_tick_ms,
+    adcx_interrupt          => hmcad_x_int, --int_adcx,
+    adcx_tick_ms            => adcx_tick_ms --,
 
-    spifi_cs                => spifi_cs ,
-    spifi_sck               => spifi_sck_bufg,
-    spifi_sio               => spifi_sio
+--    spifi_cs                => spifi_cs ,
+--    spifi_sck               => spifi_sck_bufg,
+--    spifi_sio               => spifi_sio
+  );
+
+--gen_proc : for i in 0 to 3 generate
+--  aFifo_inst : entity aFifo
+--    generic map(
+--        DATA_WIDTH      => 64,
+--        ADDR_WIDTH      => 4
+--    )
+--    port map(
+--        -- Reading port.
+--        Data_out    => qspi_x_data(i*64 + 63 downto i*64),
+--        Empty_out   => fifo_empty_out(i),
+--        ReadEn_in   => qspi_x_ready(i),
+--        RClk        => clk_125MHz,
+--        -- Writing port.
+--        Data_in     => hmcad_x_data(i*64 + 63 downto i*64),
+--        Full_out    => fifo_full_out(i),
+--        WriteEn_in  => hmcad_x_valid(i),
+--        WClk        => hmcad_x_clk(i),
+--        Clear_in    => qspi_x_cs_up(i)
+--    );
+--  hmcad_x_ready(i) <= (not fifo_full_out(i));
+--end generate;
+--
+--process(clk_125MHz)
+--begin
+--  if rising_edge(clk_125MHz) then
+--    int_adcx <= hmcad_x_int xor (not fifo_empty_out);
+--  end if;
+--end process;
+int_adcx <= hmcad_x_int;
+--qspi_x_clk <= clk_125MHz & clk_125MHz & clk_125MHz & clk_125MHz;
+qspi_x_clk <= hmcad_x_clk;
+hmcad_x_ready <= qspi_x_ready;
+qspi_x_data <= hmcad_x_data;
+
+QSPI_interconnect_inst : entity QSPI_interconnect
+  Generic map(
+    c_num_slave_port    => 4,
+    c_data_width        => 64,
+    c_command_width     => 8,
+    C_CPHA              => '0',
+    C_CPOL              => '0',
+    C_LSB_FIRST         => false
+  )
+  Port map(
+    slave_x_clk         => qspi_x_clk,
+    slave_x_ready       => qspi_x_ready,
+    slave_x_data        => qspi_x_data ,
+    slave_x_cs_up       => qspi_x_cs_up,
+    qspi_sio            => spifi_sio,
+    qspi_sck            => spifi_sck_bufg,
+    qspi_cs             => spifi_cs
   );
 
 end Behavioral;

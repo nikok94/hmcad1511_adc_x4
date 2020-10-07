@@ -12,7 +12,8 @@ use work.true_dpram_sclk;
 entity data_recorder is
     generic (
       c_max_num_data            : integer := 16;
-      c_data_width              : integer := 64
+      c_data_width              : integer := 64;
+      c_start_delay             : integer := 9
     );
     Port ( 
       rst                       : in std_logic;
@@ -151,8 +152,8 @@ addr_b_proc :
       addr_b <= (others => '0');
     elsif rising_edge(clk) then
       if (state = start_st) and (start = '1') then
-        addr_b <= addr_a - start_offset + 1;
-        count_a_max <= num_data - start_offset;
+        addr_b <= addr_a - start_offset - c_start_delay + 1;
+        count_a_max <= num_data - start_offset - c_start_delay;
         count_b_max <= num_data;
       else
         if ((m_ready = '1') and (valid = '1'))then
