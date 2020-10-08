@@ -109,7 +109,7 @@ end hmcad_x4_top;
 
 architecture Behavioral of hmcad_x4_top is
     constant C_BURST_WIDTH_SPIFI        : integer := 16;
-    
+    constant c_max_num_data             : integer := 2048;
     signal sys_rst                      : std_logic;
     signal pll_lock                     : std_logic;
     signal clk_125MHz                   : std_logic;
@@ -117,7 +117,7 @@ architecture Behavioral of hmcad_x4_top is
     signal rst                          : std_logic;
     signal infrst_rst_out               : std_logic;
     
-    type SPIRegistersStrucrure       is (TriggerSetUp, ADCEnableReg, TriggerPositionSetUp, ControlReg, StatusReg, StructureLength);
+    type SPIRegistersStrucrure       is (TriggerSetUp, ADCEnableReg, TriggerPositionSetUp, ControlReg, BufferLength, StructureLength);
     type SPIRegistersType    is array (SPIRegistersStrucrure'pos(StructureLength) - 1 downto 0) of std_logic_vector(15 downto 0);
     signal SPIRegisters                 : SPIRegistersType := (
                                             SPIRegistersStrucrure'pos(TriggerSetUp) => x"7F00",
@@ -366,7 +366,7 @@ spi_write_process :
         trigger_start_delay(0) <= '0';
       end if;
       spi_rst_cmd <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(program_rst));
-      SPIRegisters(SPIRegistersStrucrure'pos(StatusReg)) <= "00000000000" & trigger_start_out & conv_std_logic_vector(state_out, 4);
+      SPIRegisters(SPIRegistersStrucrure'pos(BufferLength)) <= conv_std_logic_vector(c_max_num_data, 16);
     end if;
   end process;
 
@@ -411,7 +411,7 @@ port map (
 
 hmcad_x4_block_inst : entity hmcad_x4_block
   Generic map (
-    c_max_num_data         => 32
+    c_max_num_data         => c_max_num_data
   )
   Port map(
     areset                  => hmcad_x4_block_rst,
@@ -464,44 +464,12 @@ hmcad_x4_block_inst : entity hmcad_x4_block
     slave_x_cs_up           => qspi_x_cs_up,
 
     adcx_calib_done         => adcx_calib_done,
-    adcx_interrupt          => hmcad_x_int, --int_adcx,
-    adcx_tick_ms            => adcx_tick_ms --,
+    adcx_interrupt          => hmcad_x_int,
+    adcx_tick_ms            => adcx_tick_ms 
 
---    spifi_cs                => spifi_cs ,
---    spifi_sck               => spifi_sck_bufg,
---    spifi_sio               => spifi_sio
   );
 
---gen_proc : for i in 0 to 3 generate
---  aFifo_inst : entity aFifo
---    generic map(
---        DATA_WIDTH      => 64,
---        ADDR_WIDTH      => 4
---    )
---    port map(
---        -- Reading port.
---        Data_out    => qspi_x_data(i*64 + 63 downto i*64),
---        Empty_out   => fifo_empty_out(i),
---        ReadEn_in   => qspi_x_ready(i),
---        RClk        => clk_125MHz,
---        -- Writing port.
---        Data_in     => hmcad_x_data(i*64 + 63 downto i*64),
---        Full_out    => fifo_full_out(i),
---        WriteEn_in  => hmcad_x_valid(i),
---        WClk        => hmcad_x_clk(i),
---        Clear_in    => qspi_x_cs_up(i)
---    );
---  hmcad_x_ready(i) <= (not fifo_full_out(i));
---end generate;
---
---process(clk_125MHz)
---begin
---  if rising_edge(clk_125MHz) then
---    int_adcx <= hmcad_x_int xor (not fifo_empty_out);
---  end if;
---end process;
 int_adcx <= hmcad_x_int;
---qspi_x_clk <= clk_125MHz & clk_125MHz & clk_125MHz & clk_125MHz;
 qspi_x_clk <= hmcad_x_clk;
 hmcad_x_ready <= qspi_x_ready;
 qspi_x_data <= hmcad_x_data;

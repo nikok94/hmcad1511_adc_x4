@@ -205,7 +205,7 @@ architecture Behavioral of hmcad_x4_block is
 
 
 begin
-
+trig_position <= TriggerPositionSetUp;
 adcx_enable <= ADCEnableReg(3 downto 0);
 mux_data_selector <= TriggerSetUp(3 downto 2);
 

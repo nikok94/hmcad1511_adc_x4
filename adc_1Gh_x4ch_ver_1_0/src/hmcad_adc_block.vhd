@@ -200,7 +200,7 @@ trigger_sync_process :
       
       d2_trigger_set <= d1_trigger_set;
       
-      set <= (not d2_trigger_set) and d1_trigger_set;
+      set <= (d2_trigger_set) and (not d1_trigger_set);
 
     end if;
   end process;
