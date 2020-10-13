@@ -54,42 +54,49 @@ entity hmcad_x4_block is
     TriggerPositionSetUp    : in std_logic_vector(15 downto 0);
     mode                    : in std_logic_vector(1 downto 0);
     start                   : in std_logic;
-
-    adc0_lclk_p             : in std_logic;
-    adc0_lclk_n             : in std_logic;
-    adc0_fclk_p             : in std_logic;
-    adc0_fclk_n             : in std_logic;
-    adc0_dx_a_p             : in std_logic_vector(3 downto 0);
-    adc0_dx_a_n             : in std_logic_vector(3 downto 0);
-    adc0_dx_b_p             : in std_logic_vector(3 downto 0);
-    adc0_dx_b_n             : in std_logic_vector(3 downto 0);
-
-    adc1_lclk_p             : in std_logic;
-    adc1_lclk_n             : in std_logic;
-    adc1_fclk_p             : in std_logic;
-    adc1_fclk_n             : in std_logic;
-    adc1_dx_a_p             : in std_logic_vector(3 downto 0);
-    adc1_dx_a_n             : in std_logic_vector(3 downto 0);
-    adc1_dx_b_p             : in std_logic_vector(3 downto 0);
-    adc1_dx_b_n             : in std_logic_vector(3 downto 0);
-
-    adc2_lclk_p             : in std_logic;
-    adc2_lclk_n             : in std_logic;
-    adc2_fclk_p             : in std_logic;
-    adc2_fclk_n             : in std_logic;
-    adc2_dx_a_p             : in std_logic_vector(3 downto 0);
-    adc2_dx_a_n             : in std_logic_vector(3 downto 0);
-    adc2_dx_b_p             : in std_logic_vector(3 downto 0);
-    adc2_dx_b_n             : in std_logic_vector(3 downto 0);
-
-    adc3_lclk_p             : in std_logic;
-    adc3_lclk_n             : in std_logic;
-    adc3_fclk_p             : in std_logic;
-    adc3_fclk_n             : in std_logic;
-    adc3_dx_a_p             : in std_logic_vector(3 downto 0);
-    adc3_dx_a_n             : in std_logic_vector(3 downto 0);
-    adc3_dx_b_p             : in std_logic_vector(3 downto 0);
-    adc3_dx_b_n             : in std_logic_vector(3 downto 0);
+    adcx_lclk_p             : in std_logic_vector(3 downto 0);
+    adcx_lclk_n             : in std_logic_vector(3 downto 0);
+    adcx_fclk_p             : in std_logic_vector(3 downto 0);
+    adcx_fclk_n             : in std_logic_vector(3 downto 0);
+    adcx_dx_a_p             : in std_logic_vector(4*4 - 1 downto 0);
+    adcx_dx_a_n             : in std_logic_vector(4*4 - 1 downto 0);
+    adcx_dx_b_p             : in std_logic_vector(4*4 - 1 downto 0);
+    adcx_dx_b_n             : in std_logic_vector(4*4 - 1 downto 0);
+--    adc0_lclk_p             : in std_logic;
+--    adc0_lclk_n             : in std_logic;
+--    adc0_fclk_p             : in std_logic;
+--    adc0_fclk_n             : in std_logic;
+--    adc0_dx_a_p             : in std_logic_vector(3 downto 0);
+--    adc0_dx_a_n             : in std_logic_vector(3 downto 0);
+--    adc0_dx_b_p             : in std_logic_vector(3 downto 0);
+--    adc0_dx_b_n             : in std_logic_vector(3 downto 0);
+--
+--    adc1_lclk_p             : in std_logic;
+--    adc1_lclk_n             : in std_logic;
+--    adc1_fclk_p             : in std_logic;
+--    adc1_fclk_n             : in std_logic;
+--    adc1_dx_a_p             : in std_logic_vector(3 downto 0);
+--    adc1_dx_a_n             : in std_logic_vector(3 downto 0);
+--    adc1_dx_b_p             : in std_logic_vector(3 downto 0);
+--    adc1_dx_b_n             : in std_logic_vector(3 downto 0);
+--
+--    adc2_lclk_p             : in std_logic;
+--    adc2_lclk_n             : in std_logic;
+--    adc2_fclk_p             : in std_logic;
+--    adc2_fclk_n             : in std_logic;
+--    adc2_dx_a_p             : in std_logic_vector(3 downto 0);
+--    adc2_dx_a_n             : in std_logic_vector(3 downto 0);
+--    adc2_dx_b_p             : in std_logic_vector(3 downto 0);
+--    adc2_dx_b_n             : in std_logic_vector(3 downto 0);
+--
+--    adc3_lclk_p             : in std_logic;
+--    adc3_lclk_n             : in std_logic;
+--    adc3_fclk_p             : in std_logic;
+--    adc3_fclk_n             : in std_logic;
+--    adc3_dx_a_p             : in std_logic_vector(3 downto 0);
+--    adc3_dx_a_n             : in std_logic_vector(3 downto 0);
+--    adc3_dx_b_p             : in std_logic_vector(3 downto 0);
+--    adc3_dx_b_n             : in std_logic_vector(3 downto 0);
 
     adcx_calib_done         : out std_logic_vector(3 downto 0);
     adcx_interrupt          : out std_logic_vector(3 downto 0);
@@ -99,7 +106,10 @@ entity hmcad_x4_block is
     slave_x_valid           : out std_logic_vector(4 - 1 downto 0);
     slave_x_ready           : in std_logic_vector(4 - 1 downto 0);
     slave_x_data            : out std_logic_vector(4*c_data_width - 1 downto 0);
-    slave_x_cs_up           : in std_logic_vector(4 - 1 downto 0)--;
+    slave_x_cs_up           : in std_logic_vector(4 - 1 downto 0);
+    
+    recorder_rst            : in std_logic
+    --;
 --    
 --    
 --    spifi_cs                : in std_logic;
@@ -156,52 +166,63 @@ architecture Behavioral of hmcad_x4_block is
   signal adcx_calib_status              : std_logic_vector(3 downto 0);
   signal start_dvec                     : std_logic_vector(3 downto 0);
   signal start_sync                     : std_logic;
-
-  signal adc0_gclk                      : std_logic;
-  signal adc0_gclk_out                  : std_logic;
-  signal adc0_data                      : std_logic_vector(63 downto 0);
-  signal rec0_data                      : std_logic_vector(63 downto 0);
-  signal rec0_ready                     : std_logic;
-  signal rec0_valid                     : std_logic;
-  signal rec0_rst                       : std_logic;
-  signal trigger0_enable                : std_logic;
-  signal trigger0_out                   : std_logic;
   
-  signal adc1_gclk                      : std_logic;
-  signal adc1_gclk_out                  : std_logic;
-  signal adc1_data                      : std_logic_vector(63 downto 0);
-  signal rec1_data                      : std_logic_vector(63 downto 0);
-  signal rec1_ready                     : std_logic;
-  signal rec1_valid                     : std_logic;
-  signal rec1_rst                       : std_logic;
-  signal trigger1_enable                : std_logic;
-  signal trigger1_out                   : std_logic;
+  signal adcx_gclk                      : std_logic_vector(3 downto 0);
+  signal adcx_gclk_out                  : std_logic_vector(3 downto 0);
+  type x4datatype   is array(3 downto 0) of std_logic_vector(63 downto 0);
+  signal recx_data                      : x4datatype;
+  signal recx_ready                     : std_logic_vector(3 downto 0);
+  signal recx_valid                     : std_logic_vector(3 downto 0);
+  signal recx_rst                       : std_logic_vector(3 downto 0);
+  signal trigger_enable                 : std_logic_vector(3 downto 0);
+  signal trigger_out                    : std_logic_vector(3 downto 0);
 
-  signal adc2_gclk                      : std_logic;
-  signal adc2_gclk_out                  : std_logic;
-  signal adc2_data                      : std_logic_vector(63 downto 0);
-  signal rec2_data                      : std_logic_vector(63 downto 0);
-  signal rec2_ready                     : std_logic;
-  signal rec2_valid                     : std_logic;
-  signal rec2_rst                       : std_logic;
-  signal trigger2_enable                : std_logic;
-  signal trigger2_out                   : std_logic;
-
-  signal adc3_gclk                      : std_logic;
-  signal adc3_gclk_out                  : std_logic;
-  signal adc3_data                      : std_logic_vector(63 downto 0);
-  signal rec3_data                      : std_logic_vector(63 downto 0);
-  signal rec3_ready                     : std_logic;
-  signal rec3_valid                     : std_logic;
-  signal rec3_rst                       : std_logic;
-  signal trigger3_enable                : std_logic;
-  signal trigger3_out                   : std_logic;
-
+--  signal adc0_gclk                      : std_logic;
+--  signal adc0_gclk_out                  : std_logic;
+--  signal adc0_data                      : std_logic_vector(63 downto 0);
+--  signal rec0_data                      : std_logic_vector(63 downto 0);
+--  signal rec0_ready                     : std_logic;
+--  signal rec0_valid                     : std_logic;
+--  signal rec0_rst                       : std_logic;
+--  signal trigger_enable                 : std_logic_vector(3 downto 0);
+--  signal trigger_out                    : std_logic_vector(3 downto 0);
+--  
+--  signal adc1_gclk                      : std_logic;
+--  signal adc1_gclk_out                  : std_logic;
+--  signal adc1_data                      : std_logic_vector(63 downto 0);
+--  signal rec1_data                      : std_logic_vector(63 downto 0);
+--  signal rec1_ready                     : std_logic;
+--  signal rec1_valid                     : std_logic;
+--  signal rec1_rst                       : std_logic;
+--  signal trigger1_enable                : std_logic;
+--  signal trigger1_out                   : std_logic;
+--
+--  signal adc2_gclk                      : std_logic;
+--  signal adc2_gclk_out                  : std_logic;
+--  signal adc2_data                      : std_logic_vector(63 downto 0);
+--  signal rec2_data                      : std_logic_vector(63 downto 0);
+--  signal rec2_ready                     : std_logic;
+--  signal rec2_valid                     : std_logic;
+--  signal rec2_rst                       : std_logic;
+--  signal trigger2_enable                : std_logic;
+--  signal trigger2_out                   : std_logic;
+--
+--  signal adc3_gclk                      : std_logic;
+--  signal adc3_gclk_out                  : std_logic;
+--  signal adc3_data                      : std_logic_vector(63 downto 0);
+--  signal rec3_data                      : std_logic_vector(63 downto 0);
+--  signal rec3_ready                     : std_logic;
+--  signal rec3_valid                     : std_logic;
+--  signal rec3_rst                       : std_logic;
+--  signal trigger3_enable                : std_logic;
+--  signal trigger3_out                   : std_logic;
+--
   signal trigger                        : std_logic;
   signal rec0_irq                       : std_logic;
   signal rec1_irq                       : std_logic;
   signal rec2_irq                       : std_logic;
   signal rec3_irq                       : std_logic;
+  signal recorder_rst_vec               : std_logic_vector(3 downto 0);
 
 
 begin
@@ -209,179 +230,218 @@ trig_position <= TriggerPositionSetUp;
 adcx_enable <= ADCEnableReg(3 downto 0);
 mux_data_selector <= TriggerSetUp(3 downto 2);
 
+adc_block_gen : for i in 0 to recorder_rst_vec'length - 1 generate
+  recorder_rst_vec(i) <= slave_x_cs_up(i) or recorder_rst;
+  
+  adc0_inst : entity hmcad_adc_block
+  Generic map(
+    c_max_num_data        => c_max_num_data
+  )
+  Port map(
+    trigger_enable        => trigger_enable(i),
+    trigger_condition     => TriggerSetUp(5 downto 4),
+    trigger_level         => TriggerSetUp(15 downto 8),
+    trigger_mode          => mode,
+    trigger_set           => start,
+
+    trigger_out           => trigger_out(i),
+    trigger_in            => trigger,
+
+    lclk_p                => adcx_lclk_p(i),
+    lclk_n                => adcx_lclk_n(i),
+    fclk_p                => adcx_fclk_p(i),
+    fclk_n                => adcx_fclk_n(i),
+    dx_a_p                => adcx_dx_a_p(i*4 + 3 downto i*4),
+    dx_a_n                => adcx_dx_a_n(i*4 + 3 downto i*4),
+    dx_b_p                => adcx_dx_b_p(i*4 + 3 downto i*4),
+    dx_b_n                => adcx_dx_b_n(i*4 + 3 downto i*4),
+    areset                => areset,
+    enable                => adcx_enable(i),
+    gclk                  => adcx_gclk(i),
+    gclk_out              => adcx_gclk_out(i),
+    calib_done            => adcx_calib_done(i),
+    tick_ms               => adcx_tick_ms(i),
+    
+    recorder_interrupt    => adcx_interrupt(i),
+    recorder_rst          => recorder_rst_vec(i),
+    recorder_data         => recx_data(i),
+    recorder_valid        => recx_valid(i),
+    recorder_ready        => slave_x_ready(i),
+    recorder_offset       => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0)
+  );
+  
+end generate;
+
 process(mux_data_selector)
 begin
-  trigger0_enable <= '0';
-  trigger1_enable <= '0';
-  trigger2_enable <= '0';
-  trigger3_enable <= '0';
+  trigger_enable <= (others => '0');
   case(mux_data_selector) is
     when "00" =>
-      trigger0_enable <= '1';
+      trigger_enable(0) <= '1';
     when "01" => 
-      trigger1_enable <= '1';
+      trigger_enable(1) <= '1';
     when "10" =>
-      trigger2_enable <= '1';
+      trigger_enable(2) <= '1';
     when "11" =>
-      trigger3_enable <= '1';
+      trigger_enable(3) <= '1';
     when others =>
   end case;
 end process;
 
-trigger <= trigger0_out or trigger1_out or trigger2_out or trigger3_out;
+trigger <= trigger_out(0) or trigger_out(1) or trigger_out(2) or trigger_out(3);
 
-adc0_inst : entity hmcad_adc_block
-  Generic map(
-    c_max_num_data        => c_max_num_data
-  )
-  Port map(
-    trigger_enable        => trigger0_enable,
-    trigger_condition     => TriggerSetUp(5 downto 4),
-    trigger_level         => TriggerSetUp(15 downto 8),
-    trigger_mode          => mode,
-    trigger_set           => start,
+--adc0_inst : entity hmcad_adc_block
+--  Generic map(
+--    c_max_num_data        => c_max_num_data
+--  )
+--  Port map(
+--    trigger_enable        => trigger0_enable,
+--    trigger_condition     => TriggerSetUp(5 downto 4),
+--    trigger_level         => TriggerSetUp(15 downto 8),
+--    trigger_mode          => mode,
+--    trigger_set           => start,
+--
+--    trigger_out           => trigger0_out,
+--    trigger_in            => trigger,
+--
+--    lclk_p                => adc0_lclk_p,
+--    lclk_n                => adc0_lclk_n,
+--    fclk_p                => adc0_fclk_p,
+--    fclk_n                => adc0_fclk_n,
+--    dx_a_p                => adc0_dx_a_p,
+--    dx_a_n                => adc0_dx_a_n,
+--    dx_b_p                => adc0_dx_b_p,
+--    dx_b_n                => adc0_dx_b_n,
+--    areset                => areset,
+--    enable                => adcx_enable(0),
+--    gclk                  => adc0_gclk,
+--    gclk_out              => adc0_gclk_out,
+--    calib_done            => adcx_calib_done(0),
+--    tick_ms               => adcx_tick_ms(0),
+--    
+--    recorder_interrupt    => adcx_interrupt(0),
+--    recorder_rst          => recorder_rst_vec(0),
+--    recorder_data         => rec0_data,
+--    recorder_valid        => rec0_valid,
+--    recorder_ready        => slave_x_ready(0),
+--    recorder_offset       => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0)
+--  );
+--
+--adc1_inst : entity hmcad_adc_block
+--  Generic map(
+--    c_max_num_data        => c_max_num_data
+--  )
+--  Port map(
+--    trigger_enable        => trigger1_enable,
+--    trigger_condition     => TriggerSetUp(5 downto 4),
+--    trigger_level         => TriggerSetUp(15 downto 8),
+--    trigger_mode          => mode,
+--    trigger_set           => start,
+--
+--    trigger_out           => trigger1_out,
+--    trigger_in            => trigger,
+--
+--    lclk_p                => adc1_lclk_p,
+--    lclk_n                => adc1_lclk_n,
+--    fclk_p                => adc1_fclk_p,
+--    fclk_n                => adc1_fclk_n,
+--    dx_a_p                => adc1_dx_a_p,
+--    dx_a_n                => adc1_dx_a_n,
+--    dx_b_p                => adc1_dx_b_p,
+--    dx_b_n                => adc1_dx_b_n,
+--    areset                => areset,
+--    enable                => adcx_enable(1),
+--    gclk                  => adc1_gclk,
+--    gclk_out              => adc1_gclk_out,
+--    calib_done            => adcx_calib_done(1),
+--    tick_ms               => adcx_tick_ms(1),
+--
+--    recorder_interrupt    => adcx_interrupt(1),
+--    recorder_rst          => recorder_rst_vec(1),
+--    recorder_data         => rec1_data,
+--    recorder_valid        => rec1_valid,
+--    recorder_ready        => slave_x_ready(1),
+--    recorder_offset       => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0)
+--  );
+--
+--adc2_inst : entity hmcad_adc_block
+--  Generic map(
+--    c_max_num_data        => c_max_num_data
+--  )
+--  Port map(
+--    trigger_enable        => trigger2_enable,
+--    trigger_condition     => TriggerSetUp(5 downto 4),
+--    trigger_level         => TriggerSetUp(15 downto 8),
+--    trigger_mode          => mode,
+--    trigger_set           => start,
+--
+--    trigger_out           => trigger2_out,
+--    trigger_in            => trigger,
+--
+--    lclk_p                => adc2_lclk_p,
+--    lclk_n                => adc2_lclk_n,
+--    fclk_p                => adc2_fclk_p,
+--    fclk_n                => adc2_fclk_n,
+--    dx_a_p                => adc2_dx_a_p,
+--    dx_a_n                => adc2_dx_a_n,
+--    dx_b_p                => adc2_dx_b_p,
+--    dx_b_n                => adc2_dx_b_n,
+--    areset                => areset,
+--    enable                => adcx_enable(2),
+--    gclk                  => adc2_gclk,
+--    gclk_out              => adc2_gclk_out,
+--    calib_done            => adcx_calib_done(2),
+--    tick_ms               => adcx_tick_ms(2),
+--    
+--    recorder_interrupt    => adcx_interrupt(2),
+--    recorder_rst          => recorder_rst_vec(2),
+--    recorder_data         => rec2_data,
+--    recorder_valid        => rec2_valid,
+--    recorder_ready        => slave_x_ready(2),
+--    recorder_offset       => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0)
+--  );
+--
+--adc3_inst : entity hmcad_adc_block
+--  Generic map(
+--    c_max_num_data        => c_max_num_data
+--  )
+--  Port map(
+--    trigger_enable        => trigger3_enable,
+--    trigger_condition     => TriggerSetUp(5 downto 4),
+--    trigger_level         => TriggerSetUp(15 downto 8),
+--    trigger_mode          => mode,
+--    trigger_set           => start,
+--
+--    trigger_out           => trigger3_out,
+--    trigger_in            => trigger,
+--
+--    lclk_p                => adc3_lclk_p,
+--    lclk_n                => adc3_lclk_n,
+--    fclk_p                => adc3_fclk_p,
+--    fclk_n                => adc3_fclk_n,
+--    dx_a_p                => adc3_dx_a_p,
+--    dx_a_n                => adc3_dx_a_n,
+--    dx_b_p                => adc3_dx_b_p,
+--    dx_b_n                => adc3_dx_b_n,
+--    areset                => areset,
+--    enable                => adcx_enable(3),
+--    gclk                  => adc3_gclk,
+--    gclk_out              => adc3_gclk_out,
+--    calib_done            => adcx_calib_done(3),
+--    tick_ms               => adcx_tick_ms(3),
+--
+--    recorder_interrupt    => adcx_interrupt(3),
+--    recorder_rst          => recorder_rst_vec(3),
+--    recorder_data         => rec3_data,
+--    recorder_valid        => rec3_valid,
+--    recorder_ready        => slave_x_ready(3),
+--    recorder_offset       => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0)
+--  );
 
-    trigger_out           => trigger0_out,
-    trigger_in            => trigger,
-
-    lclk_p                => adc0_lclk_p,
-    lclk_n                => adc0_lclk_n,
-    fclk_p                => adc0_fclk_p,
-    fclk_n                => adc0_fclk_n,
-    dx_a_p                => adc0_dx_a_p,
-    dx_a_n                => adc0_dx_a_n,
-    dx_b_p                => adc0_dx_b_p,
-    dx_b_n                => adc0_dx_b_n,
-    areset                => areset,
-    enable                => adcx_enable(0),
-    gclk                  => adc0_gclk,
-    gclk_out              => adc0_gclk_out,
-    calib_done            => adcx_calib_done(0),
-    tick_ms               => adcx_tick_ms(0),
-    
-    recorder_interrupt    => adcx_interrupt(0),
-    recorder_rst          => slave_x_cs_up(0),
-    recorder_data         => rec0_data,
-    recorder_valid        => rec0_valid,
-    recorder_ready        => slave_x_ready(0),
-    recorder_offset       => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0)
-  );
-
-adc1_inst : entity hmcad_adc_block
-  Generic map(
-    c_max_num_data        => c_max_num_data
-  )
-  Port map(
-    trigger_enable        => trigger1_enable,
-    trigger_condition     => TriggerSetUp(5 downto 4),
-    trigger_level         => TriggerSetUp(15 downto 8),
-    trigger_mode          => mode,
-    trigger_set           => start,
-
-    trigger_out           => trigger1_out,
-    trigger_in            => trigger,
-
-    lclk_p                => adc1_lclk_p,
-    lclk_n                => adc1_lclk_n,
-    fclk_p                => adc1_fclk_p,
-    fclk_n                => adc1_fclk_n,
-    dx_a_p                => adc1_dx_a_p,
-    dx_a_n                => adc1_dx_a_n,
-    dx_b_p                => adc1_dx_b_p,
-    dx_b_n                => adc1_dx_b_n,
-    areset                => areset,
-    enable                => adcx_enable(1),
-    gclk                  => adc1_gclk,
-    gclk_out              => adc1_gclk_out,
-    calib_done            => adcx_calib_done(1),
-    tick_ms               => adcx_tick_ms(1),
-
-    recorder_interrupt    => adcx_interrupt(1),
-    recorder_rst          => slave_x_cs_up(1),
-    recorder_data         => rec1_data,
-    recorder_valid        => rec1_valid,
-    recorder_ready        => slave_x_ready(1),
-    recorder_offset       => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0)
-  );
-
-adc2_inst : entity hmcad_adc_block
-  Generic map(
-    c_max_num_data        => c_max_num_data
-  )
-  Port map(
-    trigger_enable        => trigger2_enable,
-    trigger_condition     => TriggerSetUp(5 downto 4),
-    trigger_level         => TriggerSetUp(15 downto 8),
-    trigger_mode          => mode,
-    trigger_set           => start,
-
-    trigger_out           => trigger2_out,
-    trigger_in            => trigger,
-
-    lclk_p                => adc2_lclk_p,
-    lclk_n                => adc2_lclk_n,
-    fclk_p                => adc2_fclk_p,
-    fclk_n                => adc2_fclk_n,
-    dx_a_p                => adc2_dx_a_p,
-    dx_a_n                => adc2_dx_a_n,
-    dx_b_p                => adc2_dx_b_p,
-    dx_b_n                => adc2_dx_b_n,
-    areset                => areset,
-    enable                => adcx_enable(2),
-    gclk                  => adc2_gclk,
-    gclk_out              => adc2_gclk_out,
-    calib_done            => adcx_calib_done(2),
-    tick_ms               => adcx_tick_ms(2),
-    
-    recorder_interrupt    => adcx_interrupt(2),
-    recorder_rst          => slave_x_cs_up(2),
-    recorder_data         => rec2_data,
-    recorder_valid        => rec2_valid,
-    recorder_ready        => slave_x_ready(2),
-    recorder_offset       => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0)
-  );
-
-adc3_inst : entity hmcad_adc_block
-  Generic map(
-    c_max_num_data        => c_max_num_data
-  )
-  Port map(
-    trigger_enable        => trigger3_enable,
-    trigger_condition     => TriggerSetUp(5 downto 4),
-    trigger_level         => TriggerSetUp(15 downto 8),
-    trigger_mode          => mode,
-    trigger_set           => start,
-
-    trigger_out           => trigger3_out,
-    trigger_in            => trigger,
-
-    lclk_p                => adc3_lclk_p,
-    lclk_n                => adc3_lclk_n,
-    fclk_p                => adc3_fclk_p,
-    fclk_n                => adc3_fclk_n,
-    dx_a_p                => adc3_dx_a_p,
-    dx_a_n                => adc3_dx_a_n,
-    dx_b_p                => adc3_dx_b_p,
-    dx_b_n                => adc3_dx_b_n,
-    areset                => areset,
-    enable                => adcx_enable(3),
-    gclk                  => adc3_gclk,
-    gclk_out              => adc3_gclk_out,
-    calib_done            => adcx_calib_done(3),
-    tick_ms               => adcx_tick_ms(3),
-
-    recorder_interrupt    => adcx_interrupt(3),
-    recorder_rst          => slave_x_cs_up(3),
-    recorder_data         => rec3_data,
-    recorder_valid        => rec3_valid,
-    recorder_ready        => slave_x_ready(3),
-    recorder_offset       => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0)
-  );
-
-adc0_gclk <= adc0_gclk_out;
-adc1_gclk <= adc0_gclk_out;
-adc2_gclk <= adc0_gclk_out;
-adc3_gclk <= adc0_gclk_out;
+adcx_gclk(0) <= adcx_gclk_out(0);
+adcx_gclk(1) <= adcx_gclk_out(1);
+adcx_gclk(2) <= adcx_gclk_out(2);
+adcx_gclk(3) <= adcx_gclk_out(3);
 
 --adc0_gclk <= adc0_gclk_out;
 --adc1_gclk <= adc1_gclk_out;
@@ -431,9 +491,13 @@ adc3_gclk <= adc0_gclk_out;
 --    qspi_cs             => spifi_cs
 --  );
 
-slave_x_valid <= rec3_valid & rec2_valid & rec1_valid & rec0_valid;
-slave_x_clk <= adc3_gclk & adc2_gclk & adc1_gclk & adc0_gclk;
-slave_x_data <= rec3_data & rec2_data & rec1_data & rec0_data;
+slave_x_valid <= recx_valid;
+slave_x_clk <= adcx_gclk;
+slave_x_data <= recx_data(3) & recx_data(2) & recx_data(1) & recx_data(0);
+
+--slave_x_valid <= rec3_valid & rec2_valid & rec1_valid & rec0_valid;
+--slave_x_clk <= adc3_gclk & adc2_gclk & adc1_gclk & adc0_gclk;
+--slave_x_data <= rec3_data & rec2_data & rec1_data & rec0_data;
 
 
 --spifi_mux_data_process :

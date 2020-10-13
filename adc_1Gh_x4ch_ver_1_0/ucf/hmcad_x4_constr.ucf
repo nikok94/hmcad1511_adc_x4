@@ -17,8 +17,8 @@ NET "int_adcx[2]" IOSTANDARD = LVCMOS33;
 NET "int_adcx[1]" IOSTANDARD = LVCMOS33;
 NET "int_adcx[0]" IOSTANDARD = LVCMOS33;
 NET "cs_dd" IOSTANDARD = LVCMOS33;
-NET "pulse_p" IOSTANDARD = LVDS_33;
-NET "pulse_n" IOSTANDARD = LVDS_33;
+NET "pulse_p" IOSTANDARD = LVCMOS33;
+NET "pulse_n" IOSTANDARD = LVCMOS33;
 NET "i2c_scl" DRIVE = 12;
 NET "spifi_sck" DRIVE = 12;
 NET "spifi_sio[3]" DRIVE = 12;
@@ -103,7 +103,7 @@ NET "adc0_lclk_n" LOC = J12;
 NET "adc0_lclk_n" IOSTANDARD = LVDS_25;
 NET "adc0_lclk_n" DIFF_TERM = "TRUE";
 
-NET "hmcad_x4_block_inst/adc0_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/rx_bufg_x1" TNM_NET = "lck0_div8";
+NET "hmcad_x4_block_inst/adc_block_gen[0].adc0_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/rx_bufg_x1" TNM_NET = "lck0_div8";
 TIMESPEC TS_lck0_div8 = PERIOD "lck0_div8" 8 ns HIGH 50 %;
 
 NET "adc0_fclk_p" LOC = J13;
@@ -179,8 +179,8 @@ NET "adc1_lclk_n" LOC = J16;
 NET "adc1_lclk_n" IOSTANDARD = LVDS_25;
 NET "adc1_lclk_n" DIFF_TERM = "TRUE";
 
-#NET "hmcad_x4_block_inst/adc1_deser_clk/rx_bufg_x1" TNM_NET = "lck1_div8";
-#TIMESPEC TS_lck1_div8 = PERIOD "lck1_div8" 8 ns HIGH 50 %;
+NET "hmcad_x4_block_inst/adc_block_gen[1].adc0_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/rx_bufg_x1" TNM_NET = "lck1_div8";
+TIMESPEC TS_lck1_div8 = PERIOD "lck1_div8" 8 ns HIGH 50 %;
 
 NET "adc1_fclk_p" LOC = K12;
 NET "adc1_fclk_p" IOSTANDARD = LVDS_25;
@@ -255,8 +255,8 @@ NET "adc2_lclk_n" LOC = J4;
 NET "adc2_lclk_n" IOSTANDARD = LVDS_25;
 NET "adc2_lclk_n" DIFF_TERM = "TRUE";
 
-#NET "hmcad_x4_block_inst/adc2_deser_clk/rx_bufg_x1" TNM_NET = "lck2_div8";
-#TIMESPEC TS_lck2_div8 = PERIOD "lck2_div8" 8 ns HIGH 50 %;
+NET "hmcad_x4_block_inst/adc_block_gen[2].adc0_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/rx_bufg_x1" TNM_NET = "lck2_div8";
+TIMESPEC TS_lck2_div8 = PERIOD "lck2_div8" 8 ns HIGH 50 %;
 
 NET "adc2_fclk_p" LOC = F2;
 NET "adc2_fclk_p" IOSTANDARD = LVDS_25;
@@ -331,8 +331,8 @@ NET "adc3_lclk_n" LOC = H3;
 NET "adc3_lclk_n" IOSTANDARD = LVDS_25;
 NET "adc3_lclk_n" DIFF_TERM = "TRUE";
 
-#NET "hmcad_x4_block_inst/adc3_deser_clk/rx_bufg_x1" TNM_NET = "lck3_div8";
-#TIMESPEC TS_lck3_div8 = PERIOD "lck3_div8" 8 ns HIGH 50 %;
+NET "hmcad_x4_block_inst/adc_block_gen[3].adc0_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/rx_bufg_x1" TNM_NET = "lck3_div8";
+TIMESPEC TS_lck3_div8 = PERIOD "lck3_div8" 8 ns HIGH 50 %;
 
 NET "adc3_fclk_p" LOC = J6;
 NET "adc3_fclk_p" IOSTANDARD = LVDS_25;

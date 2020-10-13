@@ -66,6 +66,7 @@ architecture Behavioral of trigger_capture is
     signal state, next_state: state_machine;
     signal vector_o         : std_logic_vector(c_data_width/8 - 1 downto 0);
     signal start            : std_logic;
+    signal counter          : std_logic_vector(3 downto 0);
 
 begin
 
@@ -98,11 +99,16 @@ begin
   elsif rising_edge(clk) then
     state <= next_state;
     trigger_start <= start;
+    if (state = trigger_start_state) then
+      counter <= counter + 1;
+    else
+      counter <= (others => '0');
+    end if;
   end if;
 end process;
 
 next_state_process:
-process(state, trigger_set_up, capture_mode, level_up_vect, ext_trig, front_condition)
+process(state, trigger_set_up, capture_mode, level_up_vect, ext_trig, front_condition, counter)
 begin
   next_state <= state;
   start <= '0';
@@ -142,7 +148,9 @@ begin
         end if;
       when trigger_start_state => 
         start <= '1';
-        next_state <= idle;
+          if (counter(counter'length - 1) = '1') then
+            next_state <= idle;
+          end if;
       when others => 
         next_state <= idle;
     end case;
