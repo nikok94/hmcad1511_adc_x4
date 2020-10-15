@@ -68,6 +68,20 @@ entity hmcad_adc_block is
       enable                    : in std_logic;
       gclk                      : in std_logic;
       gclk_out                  : out std_logic;
+      clkrxioclkp_out           : out std_logic;
+      clkrxioclkn_out           : out std_logic;
+      clkrx_serdesstrobe_out    : out std_logic;
+      
+      clkrxioclkp_in            : in std_logic;
+      clkrxioclkn_in            : in std_logic;
+      clkrx_serdesstrobe_in     : in std_logic;
+      
+      clkdly_m_out              : out std_logic;
+      clkdly_s_out              : out std_logic;
+      
+      clkdly_m_in               : in std_logic;
+      clkdly_s_in               : in std_logic;
+      
       calib_done                : out std_logic;
       tick_ms                   : out std_logic;
 
@@ -298,10 +312,23 @@ serdes_1_to_n_clk_ddr_s8_diff_inst : entity serdes_1_to_n_clk_ddr_s8_diff
     rxioclkp        => deser_clkrxioclkp,
     rxioclkn        => deser_clkrxioclkn,
     rx_serdesstrobe => deser_clkrx_serdesstrobe,
+    
+    clkdly_m_out    => clkdly_m_out,
+    clkdly_s_out    => clkdly_s_out,
+    
+    clkdly_m_in     => clkdly_m_in,
+    clkdly_s_in     => clkdly_s_in,
+    
+    
+    
     rx_bufg_x1      => gclk_bufg
   );
 gclk_out <= gclk_bufg;
 
+
+clkrxioclkp_out        <= deser_clkrxioclkp;
+clkrxioclkn_out        <= deser_clkrxioclkn;
+clkrx_serdesstrobe_out <= deser_clkrx_serdesstrobe;
 
 datain_p <= fclk_p & dx_a_p(0) & dx_b_p(0) & dx_a_p(1) & dx_b_p(1) & dx_a_p(2) & dx_b_p(2) & dx_a_p(3) & dx_b_p(3);
 datain_n <= fclk_n & dx_a_n(0) & dx_b_n(0) & dx_a_n(1) & dx_b_n(1) & dx_a_n(2) & dx_b_n(2) & dx_a_n(3) & dx_b_n(3);
@@ -316,9 +343,9 @@ serdes_1_to_n_data_ddr_s8_diff_inst : serdes_1_to_n_data_ddr_s8_diff
     use_phase_detector    => '1',
     datain_p              => datain_p,
     datain_n              => datain_n,
-    rxioclkp              => deser_clkrxioclkp,
-    rxioclkn              => deser_clkrxioclkn,
-    rxserdesstrobe        => deser_clkrx_serdesstrobe,
+    rxioclkp              => clkrxioclkp_in,
+    rxioclkn              => clkrxioclkn_in,
+    rxserdesstrobe        => clkrx_serdesstrobe_in,
     reset                 => deser_rst,
     gclk                  => gclk,
     bitslip               => deser_bitslip,
@@ -335,14 +362,15 @@ serdes_1_to_n_data_ddr_s8_diff_inst : serdes_1_to_n_data_ddr_s8_diff
 --end generate i_gen;
 deser_data_out_rev <= deser_data_out;
 
-process (gclk)
+process (gclk_bufg)
 begin
-  if rising_edge(gclk) then
+  if rising_edge(gclk_bufg) then
     frame <= deser_data_out_rev(9 * 8 - 1 downto 8*8);
     data  <= deser_data_out_rev(8 * 8 - 1 downto 0);
-    data_valid <= valid;
   end if ;
 end process;
+
+  data_valid <= valid;
 
 sync_process : process(areset, gclk)
 begin

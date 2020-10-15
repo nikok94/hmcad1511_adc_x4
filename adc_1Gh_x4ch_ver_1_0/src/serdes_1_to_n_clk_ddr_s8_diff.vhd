@@ -35,6 +35,13 @@ entity serdes_1_to_n_clk_ddr_s8_diff is generic (
 port 	(
 	clkin_p			:  in std_logic ;		-- Input from LVDS receiver pin
 	clkin_n			:  in std_logic ;		-- Input from LVDS receiver pin
+    
+    clkdly_m_out    : out std_logic;
+    clkdly_s_out    : out std_logic;
+    
+    clkdly_m_in     : in std_logic;
+    clkdly_s_in     : in std_logic;
+    
 	rxioclkp		: out std_logic ;		-- IO Clock network
 	rxioclkn		: out std_logic ;		-- IO Clock network
 	rx_serdesstrobe		: out std_logic ;		-- Parallel data capture strobe
@@ -128,13 +135,16 @@ port map (
 	RST      		=> '0', 			-- Reset delay line
 	BUSY      		=> open) ;			-- output signal indicating sync circuit has finished / calibration has finished
 
-bufg_pll_x1 : BUFG port map	(I => rx_bufio2_x1, O => rx_bufg_x1) ;
+bufg_pll_x1 : BUFG port map	(I => rx_bufio2_x1, O => rx_bufg_x1);
+
+clkdly_m_out <= ddly_m;
+clkdly_s_out <= ddly_s;
 
 bufio2_2clk_inst : BUFIO2_2CLK generic map(
       DIVIDE			=> S)               		-- The DIVCLK divider divide-by value; default 1
 port map (
-      I				=> ddly_m,  			-- Input source clock 0 degrees
-      IB			=> ddly_s,  			-- Input source clock 0 degrees
+      I				=> clkdly_m_in,  			-- Input source clock 0 degrees
+      IB			=> clkdly_s_in,  			-- Input source clock 0 degrees
       IOCLK			=> rxioclkp,        		-- Output Clock for IO
       DIVCLK			=> rx_bufio2_x1,                -- Output Divided Clock
       SERDESSTROBE		=> rx_serdesstrobe) ;           -- Output SERDES strobe (Clock Enable)
@@ -144,51 +154,10 @@ bufio2_inst : BUFIO2 generic map(
       DIVIDE_BYPASS		=> FALSE,               	--
       USE_DOUBLER		=> FALSE)               	--
 port map (
-      I				=> ddly_s,               	-- N_clk input from IDELAY
+      I				=> clkdly_s_in,               	-- N_clk input from IDELAY
       IOCLK			=> rxioclkn,        		-- Output Clock
       DIVCLK			=> open,                	-- Output Divided Clock
       SERDESSTROBE		=> open) ;           		-- Output SERDES strobe (Clock Enable)
-      
 
---   IBUFGDS_inst : IBUFGDS
---   generic map (
---      DIFF_TERM => DIFF_TERM, -- Differential Termination 
---      IBUF_LOW_PWR => TRUE, -- Low power (TRUE) vs. performance (FALSE) setting for referenced I/O standards
---      IOSTANDARD => "DEFAULT")
---   port map (
---      O => clkin_ibufg,  -- Clock buffer output
---      I => clkin_p,  -- Diff_p clock buffer input (connect directly to top-level port)
---      IB => clkin_n -- Diff_n clock buffer input (connect directly to top-level port)
---   );
---
---div_clk_bufg_ins : BUFG port map ( I => div_clk, O => rx_bufg_x1 );
---
---BUFIO2_clk0_inst : BUFIO2
---   generic map (
---      DIVIDE => S,           -- DIVCLK divider (1,3-8)
---      DIVIDE_BYPASS => FALSE, -- Bypass the divider circuitry (TRUE/FALSE)
---      I_INVERT => FALSE,     -- Invert clock (TRUE/FALSE)
---      USE_DOUBLER => TRUE   -- Use doubler circuitry (TRUE/FALSE)
---   )
---   port map (
---      DIVCLK => div_clk,             -- 1-bit output: Divided clock output
---      IOCLK => rxioclkp,               -- 1-bit output: I/O output clock
---      SERDESSTROBE => rx_serdesstrobe, -- 1-bit output: Output SERDES strobe (connect to ISERDES2/OSERDES2)
---      I => clkin_ibufg                        -- 1-bit input: Clock input (connect to IBUFG)
---   );
---
---BUFIO2_clk1_inst : BUFIO2
---   generic map (
---      DIVIDE => S,           -- DIVCLK divider (1,3-8)
---      DIVIDE_BYPASS => FALSE, -- Bypass the divider circuitry (TRUE/FALSE)
---      I_INVERT => TRUE,     -- Invert clock (TRUE/FALSE)
---      USE_DOUBLER => FALSE   -- Use doubler circuitry (TRUE/FALSE)
---   )
---   port map (
---      DIVCLK => open,             -- 1-bit output: Divided clock output
---      IOCLK => rxioclkn,               -- 1-bit output: I/O output clock
---      SERDESSTROBE => open, -- 1-bit output: Output SERDES strobe (connect to ISERDES2/OSERDES2)
---      I => clkin_ibufg                        -- 1-bit input: Clock input (connect to IBUFG)
---   );
 
 end arch_serdes_1_to_n_clk_ddr_s8_diff ;
