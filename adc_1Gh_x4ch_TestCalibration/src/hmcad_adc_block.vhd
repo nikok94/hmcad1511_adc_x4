@@ -34,8 +34,8 @@ use work.serdes_1_to_n_data_ddr_s8_diff;
 
 -- Uncomment the following library declaration if instantiating
 -- any Xilinx primitives in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
+library UNISIM;
+use UNISIM.VComponents.all;
 
 entity hmcad_adc_block is
   Port (
@@ -190,6 +190,12 @@ serdes_1_to_n_data_ddr_s8_diff_inst : entity serdes_1_to_n_data_ddr_s8_diff
     data_ibufgds          => data_ibufgds,
     debug                 => open
   );
+
+--bufg_fclk : bufg 
+--  port map (
+--    I => data_ibufgds(8),
+--    O => fclk_ibufgds
+--  );
 
 fclk_ibufgds <= data_ibufgds(8);
 

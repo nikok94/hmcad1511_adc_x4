@@ -163,7 +163,7 @@ port map (
 	O         		=> rx_data_in(i));
     
 
-data_ibufgds(i) <= rx_data_in(i);
+data_ibufgds(i) <= rx_data_in_fix(i) ;
 
 iodelay_m : IODELAY2 generic map(
 	DATA_RATE      		=> "DDR", 		-- <SDR>, DDR

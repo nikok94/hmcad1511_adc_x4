@@ -38,7 +38,7 @@ use work.clock_generator;
 use work.spi_adc_250x4_master;
 use work.hmcad_x4_block;
 use work.QSPI_interconnect;
---use work.aFifo;
+use work.aFifo;
 
 
 entity hmcad_x4_top is
@@ -100,6 +100,8 @@ entity hmcad_x4_top is
         dd                      : inout std_logic_vector(7 downto 0);
         clk_dd                  : in std_logic;
         cs_dd                   : in std_logic;
+        
+        controls_out            : out std_logic_vector(3 downto 0);
         
         pulse_n                 : out std_logic := '0';
         pulse_p                 : out std_logic := '0'
@@ -221,13 +223,45 @@ architecture Behavioral of hmcad_x4_top is
     signal PLL_RESET                    : std_logic := '0';
     signal DCM_LOCKED                   : std_logic;
     signal PLL_LOCKED                   : std_logic;
-    signal DCM_STATUS                   : std_logic_vector(2 downto 0);
+    signal DCM_STATUS                   : std_logic_vector(7 downto 0);
     signal DCM_COUNTER                  : integer;
 
     signal dcm_state                    : integer;
     signal dcm_div                      : std_logic_vector(1 downto 0);
     signal DCM_Sleep_counter            : integer;
     signal frame_imag                   : std_logic_vector(4*8 - 1 downto 0);
+    
+    signal DCM_CLKIN                    : std_logic;
+    signal DCM_CLK2X                    : std_logic;
+    
+    signal adcx_fclk_out                : std_logic_vector(3 downto 0);
+    signal DCM_CLKFB                    : std_logic;
+    signal DCM_CLK2X0                   : std_logic;
+    signal DCM_CLK2X180                 : std_logic;
+    signal DCM_CLK1X0                   : std_logic;
+    signal DCM_xCLK                     : std_logic_vector(2 downto 0);
+    signal fclk_trig_vec                : std_logic_vector(15 downto 0):= (others => '0');
+    signal fclk_trig_vec_sync           : std_logic_vector(15 downto 0);
+    signal fclk_trig_vec_sync_t         : std_logic_vector(15 downto 0);
+    signal aFifo_Empty_out              : std_logic;
+    signal aFifo_EReadEn_in             : std_logic;
+    signal DCM_SYNC                     : std_logic;
+    signal DCM_CLK1X0_DIV2              : std_logic;
+    signal DCM_CLK1X0_DIV2_d0           : std_logic;
+    signal DCM_CLK1X0_DIV2_d1           : std_logic;
+    signal WriteEn_in                   : std_logic;
+    signal dcm_clk2x0_sync_vec          : std_logic_vector(2 downto 0);
+    signal dcm_clk2x180_sync_vec        : std_logic_vector(2 downto 0);
+                                        
+    signal dcm_clk2x0_sync_up           : std_logic;
+    signal dcm_clk2x0_sync_down         : std_logic;
+    signal dcm_clk2x180_sync_up         : std_logic;
+                                        
+    signal Data_in                      : std_logic_vector(15 downto 0);
+    signal fclk_trig_vec_s              : std_logic_vector(15 downto 0);
+
+    
+    
 begin
 
 rst <= infrst_rst_out;
@@ -319,7 +353,10 @@ begin
   end if;
 end process;
 
-dd(dd'length - 1 downto 3) <= (others => 'Z');
+dd(dd'length - 1 downto 2) <= (others => 'Z');
+
+controls_out <= adcx_fclk_out;
+
 
 sys_rst <= (not xc_sys_rstn);
 
@@ -462,10 +499,6 @@ begin
   end if;
 end process;
 
---pulse_p <= not pulse;
---pulse_n <= pulse;
-
-
 pulse_out_proc : process(SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(7 downto 0))
 begin
   if (SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(7) = '1') then
@@ -482,15 +515,6 @@ begin
     pulse_n <= pulse_out;
   end if;
 end process;
-
---OBUFDS_inst : OBUFDS
---   generic map (
---      IOSTANDARD => "DEFAULT")
---   port map (
---      O => pulse_p,     -- Diff_p output (connect directly to top-level port)
---      OB => pulse_n,   -- Diff_n output (connect directly to top-level port)
---      I => (not pulse)      -- Buffer input 
---   );
 
 IBUFG_inst : IBUFG
 generic map (
@@ -544,23 +568,9 @@ hmcad_x4_block_inst : entity hmcad_x4_block
     adcx_interrupt          => hmcad_x_int,
     adcx_tick_ms            => adcx_tick_ms,
     
-    frame_imag              => frame_imag,
-    
-    trig_clk_out            => adcx_trig_clk_out,
-    
-    DCM_PSCLK               => DCM_PSCLK,
-    DCM_PSEN                => DCM_PSEN,
-    DCM_PSINCDEC            => DCM_PSINCDEC,
-    DCM_PSDONE              => DCM_PSDONE,
-    DCM_RESET               => DCM_RESET,
-    PLL_RESET               => PLL_RESET,
-    DCM_LOCKED              => DCM_LOCKED,
-    PLL_LOCKED              => PLL_LOCKED,
-    DCM_STATUS              => DCM_STATUS
+    adcx_fclk_out           => adcx_fclk_out
 
   );
-
-dd(2) <= PLL_LOCKED;
 
 process(hmcad_x4_block_rst, clk_125MHz)
 begin
@@ -636,6 +646,202 @@ begin
       when others =>
         dcm_state <= 0;
     end case;
+  end if;
+end process;
+
+dcm_sp_inst: DCM_SP
+  generic map
+   (CLKDV_DIVIDE          => 2.000,
+    CLKFX_DIVIDE          => 1,
+    CLKFX_MULTIPLY        => 4,
+    CLKIN_DIVIDE_BY_2     => FALSE,
+    CLKIN_PERIOD          => 8.0,
+    CLKOUT_PHASE_SHIFT    => "VARIABLE",
+    CLK_FEEDBACK          => "2X",
+    DESKEW_ADJUST         => "SYSTEM_SYNCHRONOUS",
+    PHASE_SHIFT           => 0,
+    STARTUP_WAIT          => FALSE)
+  port map
+   -- Input clock
+   (CLKIN                 => DCM_CLKIN,
+    CLKFB                 => DCM_CLKFB,
+    -- Output clocks
+    CLK0                  => DCM_xCLK(0),
+    CLK90                 => open,
+    CLK180                => open,
+    CLK270                => open,
+    CLK2X                 => DCM_xCLK(1),
+    CLK2X180              => DCM_xCLK(2),
+    CLKFX                 => open,
+    CLKFX180              => open,
+    CLKDV                 => open,
+   -- Ports for dynamic phase shift
+    PSCLK                 => DCM_PSCLK,
+    PSEN                  => DCM_PSEN,
+    PSINCDEC              => DCM_PSINCDEC,
+    PSDONE                => DCM_PSDONE,
+   -- Other control and status signals
+    LOCKED                => DCM_LOCKED,
+    STATUS                => DCM_STATUS,
+    RST                   => DCM_RESET,
+   -- Unused pin, tie low
+    DSSEN                 => '0');
+
+DCM_CLKIN <= hmcad_x_clk(0);
+
+
+  -- Output buffering
+  -------------------------------------
+  clkf_buf : BUFG 
+  port map 
+   (O => DCM_CLKFB,
+    I => DCM_xCLK(1));
+
+  clkout1_buf : BUFG
+  port map
+   (O   => DCM_CLK2X0,
+    I   => DCM_xCLK(1));
+
+  clkout2_buf : BUFG
+  port map
+   (O   => DCM_CLK2X180,
+    I   => DCM_xCLK(2));
+
+  clkout3_buf : BUFG
+  port map
+   (O   => DCM_CLK1X0,
+    I   => DCM_xCLK(0));
+
+  process(DCM_CLK2X0, DCM_LOCKED)
+  begin
+    if (DCM_LOCKED = '0') then
+      WriteEn_in <= '0';
+      dcm_clk2x0_sync_up <= '0';
+    elsif rising_edge(DCM_CLK2X0) then
+      dcm_clk2x0_sync_up <= not dcm_clk2x0_sync_up;
+      if (dcm_clk2x0_sync_up = '1') then
+        Data_in <= fclk_trig_vec;
+        WriteEn_in <= '1';
+      else
+        WriteEn_in <= '0';
+      end if;
+    end if;
+  end process;
+
+  fclki_gen : for i in 0 to 3 generate
+    process(DCM_CLK2X0)
+    begin
+      if rising_edge(DCM_CLK2X0) then
+        fclk_trig_vec(2*i + 0) <= adcx_fclk_out(i);
+        fclk_trig_vec(2*i + 1) <= fclk_trig_vec(2*i + 0);
+      end if;
+    end process;
+  end generate;
+--process(DCM_CLK2X0, DCM_LOCKED)
+--  begin
+--    if (DCM_LOCKED = '0') then
+--      WriteEn_in <= '0';
+--      dcm_clk2x0_sync_up <= '0';
+--      dcm_clk2x0_sync_vec <= (others => '0');
+--    elsif rising_edge(DCM_CLK2X0) then
+--      dcm_clk2x0_sync_vec(0) <= DCM_CLK1X0_DIV2;
+--      dcm_clk2x0_sync_vec(dcm_clk2x0_sync_vec'length - 1 downto 1) <= dcm_clk2x0_sync_vec(dcm_clk2x0_sync_vec'length - 2 downto 0);
+--      
+--      dcm_clk2x0_sync_up <= (not dcm_clk2x0_sync_vec(dcm_clk2x0_sync_vec'length - 1)) and dcm_clk2x0_sync_vec(dcm_clk2x0_sync_vec'length - 2);
+--      dcm_clk2x0_sync_down <= (not dcm_clk2x0_sync_vec(dcm_clk2x0_sync_vec'length - 2)) and dcm_clk2x0_sync_vec(dcm_clk2x0_sync_vec'length - 1);
+--      
+--      if (dcm_clk2x0_sync_down = '1') then
+--        Data_in <= fclk_trig_vec_sync_t;
+--        WriteEn_in <= '1';
+--      else 
+--        WriteEn_in <= '0';
+--      end if;
+--    end if;
+--  end process;
+--
+--process(DCM_CLK2X180, DCM_LOCKED)
+--  begin
+--    if (DCM_LOCKED = '0') then
+--      dcm_clk2x180_sync_up <= '0';
+--      dcm_clk2x180_sync_vec <= (others => '0');
+--    elsif rising_edge(DCM_CLK2X180) then
+--      dcm_clk2x180_sync_vec(0) <= DCM_CLK1X0_DIV2;
+--      dcm_clk2x180_sync_vec(dcm_clk2x180_sync_vec'length - 1 downto 1) <= dcm_clk2x180_sync_vec(dcm_clk2x180_sync_vec'length - 2 downto 0);
+--
+--      dcm_clk2x180_sync_up <= (not dcm_clk2x180_sync_vec(dcm_clk2x180_sync_vec'length - 1)) and dcm_clk2x180_sync_vec(dcm_clk2x180_sync_vec'length - 2);
+--    end if;
+--  end process;
+--
+--  process(DCM_CLK1X0, DCM_RESET)
+--  begin
+--    if (DCM_RESET = '1') then
+--      DCM_CLK1X0_DIV2 <= '0';
+--    elsif rising_edge(DCM_CLK1X0) then
+--      DCM_CLK1X0_DIV2 <= not DCM_CLK1X0_DIV2;
+--    end if;
+--  end process;
+--
+--fclki_gen : for i in 0 to 3 generate
+--
+--  process(DCM_CLK2X0)
+--  begin
+--    if rising_edge(DCM_CLK2X0) then
+--      fclk_trig_vec(4*i + 1) <= adcx_fclk_out(i);
+--      fclk_trig_vec(4*i + 3) <= fclk_trig_vec(4*i + 1);
+--      
+--      if (dcm_clk2x0_sync_up = '1') then
+--        fclk_trig_vec_sync(4*i + 1) <= fclk_trig_vec(4*i + 1);
+--        fclk_trig_vec_sync(4*i + 3) <= fclk_trig_vec(4*i + 3);
+--      end if;
+--      
+--      fclk_trig_vec_sync_t(4*i + 1) <= fclk_trig_vec_sync(4*i + 1);
+--      fclk_trig_vec_sync_t(4*i + 3) <= fclk_trig_vec_sync(4*i + 3);
+--    end if;
+--  end process;
+--
+--  process(DCM_CLK2X180)
+--  begin
+--    if rising_edge(DCM_CLK2X180) then
+--      fclk_trig_vec(4*i) <= adcx_fclk_out(i);
+--      fclk_trig_vec(4*i + 2) <= fclk_trig_vec(4*i);
+--      if (dcm_clk2x180_sync_up = '1') then
+--        fclk_trig_vec_sync(4*i) <= fclk_trig_vec(4*i);
+--        fclk_trig_vec_sync(4*i + 2) <= fclk_trig_vec(4*i + 2);
+--      end if;
+--      
+--      fclk_trig_vec_sync_t(4*i) <= fclk_trig_vec_sync(4*i);
+--      fclk_trig_vec_sync_t(4*i + 2) <= fclk_trig_vec_sync(4*i + 2);
+--    end if;
+--  end process;
+--
+--end generate;
+
+aFifo_inst : entity aFifo
+    generic map(
+        DATA_WIDTH => 16,
+        ADDR_WIDTH => 4
+    )
+    port map(
+        -- Reading port.
+        Data_out    => fclk_trig_vec_s,
+        Empty_out   => aFifo_Empty_out,
+        ReadEn_in   => aFifo_EReadEn_in,
+        RClk        => clk_125MHz,
+        -- Writing port.
+        Data_in     => Data_in,
+        Full_out    => open,
+        WriteEn_in  => WriteEn_in,
+        WClk        => DCM_CLK2X0,
+
+        Clear_in    => hmcad_x4_block_rst
+    );
+
+  aFifo_EReadEn_in <= not aFifo_Empty_out;
+
+process(clk_125MHz)
+begin
+  if rising_edge(clk_125MHz) then
+    frame_imag(15 downto 0) <= fclk_trig_vec_s;
   end if;
 end process;
 

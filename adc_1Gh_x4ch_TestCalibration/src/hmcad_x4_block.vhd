@@ -33,16 +33,10 @@ library UNISIM;
 use UNISIM.VComponents.all;
 
 library work;
-use work.serdes_1_to_n_clk_ddr_s8_diff;
-use work.serdes_1_to_n_data_ddr_s8_diff;
---use work.spifi_module;
-use work.QSPI_interconnect;
 use work.trigger_capture;
 use work.data_recorder;
 use work.hmcad_adc_block;
-use work.DCM_PLL;
 use work.aFifo;
---use work.HMCAD1511_v3_00;
 
 entity hmcad_x4_block is
   generic (
@@ -67,6 +61,7 @@ entity hmcad_x4_block is
     adcx_calib_done         : out std_logic_vector(3 downto 0);
     adcx_interrupt          : out std_logic_vector(3 downto 0);
     adcx_tick_ms            : out std_logic_vector(3 downto 0);
+    adcx_fclk_out           : out std_logic_vector(3 downto 0);
     
     slave_x_clk             : out std_logic_vector(4 - 1 downto 0);
     slave_x_valid           : out std_logic_vector(4 - 1 downto 0);
@@ -74,20 +69,8 @@ entity hmcad_x4_block is
     slave_x_data            : out std_logic_vector(4*c_data_width - 1 downto 0);
     slave_x_cs_up           : in std_logic_vector(4 - 1 downto 0);
 
-    trig_clk_out            : out std_logic_vector(15 downto 0);
-    recorder_rst            : in std_logic;
-    
-    frame_imag              : out std_logic_vector(4*8 - 1 downto 0);
+    recorder_rst            : in std_logic
 
-    DCM_PSCLK               : in std_logic;
-    DCM_PSEN                : in std_logic;
-    DCM_PSINCDEC            : in std_logic;
-    DCM_PSDONE              : out std_logic;
-    DCM_RESET               : in std_logic;
-    PLL_RESET               : in std_logic;
-    DCM_LOCKED              : out std_logic;
-    PLL_LOCKED              : out std_logic;
-    DCM_STATUS              : out std_logic_vector(2 downto 0)
 
     );
 end hmcad_x4_block;
@@ -150,50 +133,33 @@ architecture Behavioral of hmcad_x4_block is
   signal recx_ready                     : std_logic_vector(3 downto 0);
   signal recx_valid                     : std_logic_vector(3 downto 0);
   signal adcx_valid                     : std_logic_vector(3 downto 0);
-  signal adcx_valid_d0                  : std_logic_vector(3 downto 0);
-  signal adcx_valid_d1                  : std_logic_vector(3 downto 0);
+  signal adcx_valid_d1                  : std_logic;
   signal recx_rst                       : std_logic_vector(3 downto 0);
   signal trigger_enable                 : std_logic_vector(3 downto 0);
   signal trigger_out                    : std_logic_vector(3 downto 0);
   signal trigger_data_in                : std_logic_vector(63 downto 0);
   
-  type fifocnttype   is array(3 downto 0) of std_logic_vector(1 downto 0);
-  signal fifocnt                        : fifocnttype;
+  signal fifocnt                        : std_logic_vector(1 downto 0);
   signal trigger                        : std_logic;
-  signal rec0_irq                       : std_logic;
-  signal rec1_irq                       : std_logic;
-  signal rec2_irq                       : std_logic;
-  signal rec3_irq                       : std_logic;
   signal recorder_rst_vec               : std_logic_vector(3 downto 0);
-  signal CLKIN                          : std_logic;
-  signal CLK0                           : std_logic;
-  signal CLK90                          : std_logic;
-  signal CLKFB                          : std_logic;
-
-  signal trig_clk                       : std_logic_vector(3 downto 0);
   
   signal adcx_calib_done_out            : std_logic_vector(3 downto 0);
-  signal adcx_trg_clk                   : std_logic_vector(3 downto 0);
   signal adcx_frame_ibufds              : std_logic_vector(3 downto 0);
-  signal adcx_frame_ibufds_tr           : std_logic_vector(15 downto 0);
   signal all_calib_done                 : std_logic;
-  signal CLKFBIN                        : std_logic;
-  signal CLKFBOUT                       : std_logic;
-  signal dcm_pllx_clk                   : std_logic_vector(7 downto 0);
-  
-  signal frame_imag0                    : std_logic_vector(8*4-1 downto 0);
-  
-  signal locked_dcmpll                  : std_logic_vector(1 downto 0);
   
   signal Empty_out                      : std_logic_vector(3 downto 0);
-  signal ReadEn_in                      : std_logic_vector(3 downto 0);
-  
+  signal ReadEn_in                      : std_logic;
+  signal main_clk                       : std_logic;
+  signal Clear_in                       : std_logic;
+  signal all_valid                      : std_logic;
   
 begin
 trig_position <= TriggerPositionSetUp;
 adcx_enable <= ADCEnableReg(3 downto 0);
 mux_data_selector <= TriggerSetUp(3 downto 2);
-trig_clk_out <= adcx_frame_ibufds_tr;
+adcx_fclk_out <= adcx_frame_ibufds;
+
+main_clk <= adcx_gclk(0);
 
 adc_block_gen : for i in 3 downto 0 generate
 
@@ -227,48 +193,32 @@ aFifo_inst : entity aFifo
         -- Reading port.
         Data_out    => adcx_data_d0(i),
         Empty_out   => Empty_out(i),
-        ReadEn_in   => ReadEn_in(i),
-        RClk        => adcx_gclk(0),
+        ReadEn_in   => ReadEn_in,
+        RClk        => main_clk,
         -- Writing port.
         Data_in     => adcx_data(i),
         Full_out    => open,
         WriteEn_in  => adcx_valid(i),
         WClk        => adcx_gclk(i),
 
-        Clear_in    => (not all_calib_done)
+        Clear_in    => Clear_in
     );
-
-process(adcx_gclk(0), Empty_out(i))
-begin
-  if (Empty_out(i) = '1') then
-    adcx_valid_d1(i) <= '0';
-    fifocnt(i) <= (others => '0');
-    ReadEn_in(i) <= '0';
-  elsif rising_edge(adcx_gclk(0)) then
-    if (fifocnt(i) /= "11") then
-      fifocnt(i) <= fifocnt(i) + 1;
-    else
-      adcx_valid_d1(i) <= '1';
-      adcx_data_d1(i) <= adcx_data_d0(i);
-      ReadEn_in(i) <= '1'; 
-    end if;
-  end if;
-end process;
 
 data_recorder_inst :  entity data_recorder
     generic map(
-      c_max_num_data            => c_max_num_data
+      c_max_num_data            => c_max_num_data,
+      c_start_delay             => 14
     )
     Port map( 
       rst                       => recx_rst(i),
-      clk                       => adcx_gclk(0),
+      clk                       => main_clk,
 
       start                     => trigger,
       num_data                  => num_data,
       start_offset              => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0),
 
-      s_data                    => adcx_data_d1(i),
-      s_valid                   => adcx_valid_d1(i),
+      s_data                    => adcx_data_d0(i),
+      s_valid                   => ReadEn_in,
       s_ready                   => open,
 
       m_data                    => slave_x_data(i*64 + 63 downto i*64),
@@ -279,11 +229,11 @@ data_recorder_inst :  entity data_recorder
     );
 
 recorder_irq_proc :
-  process(adcx_gclk(0), recx_rst(i))
+  process(main_clk, recx_rst(i))
   begin
     if (recx_rst(i) = '1') then
       adcx_interrupt(i) <= '0';
-    elsif rising_edge(adcx_gclk(0)) then
+    elsif rising_edge(main_clk) then
       if (recx_valid(i) = '1') then
         adcx_interrupt(i) <= '1';
       end if;
@@ -292,10 +242,29 @@ recorder_irq_proc :
 
   recx_rst(i) <= ((recorder_rst or (not adcx_enable(i))) or slave_x_cs_up(i));
   adcx_calib_done_out(i) <= (adcx_valid(i) or (not adcx_enable(i)));
-  slave_x_clk(i) <= adcx_gclk(0);
+  slave_x_clk(i) <= main_clk;
   slave_x_valid(i) <= recx_valid(i);
 
 end generate;
+
+
+Clear_in <= (not all_calib_done);
+all_valid <= not ((Empty_out(0) and adcx_enable(0)) or (Empty_out(1) and adcx_enable(1)) or (Empty_out(2) and adcx_enable(2)) or (Empty_out(3) and adcx_enable(3)));
+
+process(main_clk, all_valid)
+begin
+  if (all_valid = '0') then
+    fifocnt <= (others => '0');
+    ReadEn_in <= '0';
+  elsif rising_edge(main_clk) then
+    if (fifocnt /= "11") then
+      fifocnt <= fifocnt + 1;
+    else
+      ReadEn_in <= '1'; 
+    end if;
+  end if;
+end process;
+
 
 adcx_calib_done <= adcx_calib_done_out;
 
@@ -306,7 +275,7 @@ trigger_capture_inst : entity trigger_capture
         c_data_width    => 64
     )
     port map( 
-      clk               => adcx_gclk(0),
+      clk               => main_clk,
       rst               => recorder_rst,
 
       capture_mode      => mode,
@@ -325,84 +294,20 @@ trigger_capture_inst : entity trigger_capture
       trigger_start     => trigger
     );
 
-process(mux_data_selector)
+process(mux_data_selector, adcx_data_d0)
 begin
   trigger_data_in <= (others => '0');
   case(mux_data_selector) is
     when "00" =>
-      trigger_data_in <= adcx_data_d1(0);
+      trigger_data_in <= adcx_data_d0(0);
     when "01" => 
-      trigger_data_in <= adcx_data_d1(1);
+      trigger_data_in <= adcx_data_d0(1);
     when "10" =>
-      trigger_data_in <= adcx_data_d1(2);
+      trigger_data_in <= adcx_data_d0(2);
     when "11" =>
-      trigger_data_in <= adcx_data_d1(3);
+      trigger_data_in <= adcx_data_d0(3);
     when others =>
   end case;
 end process;
-
-CLKIN <= adcx_gclk(0);
-
---DCM_PLL_inst : entity DCM_PLL
---port map
--- (-- Clock in ports
---  CLK_IN            => CLKIN,
---  -- Clock out ports
---  CLK_0_OUT         => dcm_pllx_clk(0),
---  CLK_45_OUT        => dcm_pllx_clk(1),
---  CLK_90_OUT        => dcm_pllx_clk(2),
---  CLK_135_OUT       => dcm_pllx_clk(3),
---  CLK_180_OUT       => dcm_pllx_clk(4),
---  CLK_225_OUT       => dcm_pllx_clk(5),
---  CLK_270_OUT       => dcm_pllx_clk(6),
---  CLK_315_OUT       => dcm_pllx_clk(7),
---  -- Dynamic phase shift ports
---  PSCLK             => DCM_PSCLK,
---  PSEN              => DCM_PSEN,
---  PSINCDEC          => DCM_PSINCDEC,
---  PSDONE            => DCM_PSDONE,
---  -- Status and control signals
---  DCM_RESET         => DCM_RESET,
---  PLL_RESET         => PLL_RESET,
---  STATUS            => DCM_STATUS,
---  DCM_LOCKED        => locked_dcmpll(0),
---  PLL_LOCKED        => locked_dcmpll(1)
--- );
---
---DCM_LOCKED <= locked_dcmpll(0);
---PLL_LOCKED <= locked_dcmpll(1);
---
---adcx_frame_ibufds_tr(15 downto 8) <= (others => '0');
---
---process(dcm_pllx_clk(0))
---begin
---  if rising_edge(dcm_pllx_clk(0)) then
---    frame_imag <= frame_imag0;
---  end if;
---end process;
---
---
---gen_i : for i in 0 to 3 generate
---  process(dcm_pllx_clk(0), locked_dcmpll(0))
---  begin
---    if (locked_dcmpll(0) = '0') then
---      adcx_frame_ibufds_tr(i) <= '0';
---      adcx_frame_ibufds_tr(i+4) <= '0';
---    elsif rising_edge(dcm_pllx_clk(0)) then
---      adcx_frame_ibufds_tr(i) <= adcx_gclkdiv2(i);
---      adcx_frame_ibufds_tr(4 + i) <= adcx_frame_ibufds(i);
---    end if;
---  end process;
---
---  gen_j : for j in 0 to 7 generate
---    process(dcm_pllx_clk(j))
---    begin
---      if rising_edge(dcm_pllx_clk(j)) then
---        frame_imag0(i*8 + j) <= adcx_frame_ibufds(i);
---      end if;
---    end process;
---  end generate gen_j;
---
---end generate gen_i;
 
 end Behavioral;

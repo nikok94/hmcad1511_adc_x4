@@ -108,7 +108,7 @@ begin
 end process;
 
 next_state_process:
-process(state, trigger_set_up, capture_mode, level_up_vect, ext_trig, front_condition, counter)
+process(state, trigger_set_up, capture_mode, level_up_vect, ext_trig, front_condition, counter, level_down_vect)
 begin
   next_state <= state;
   start <= '0';

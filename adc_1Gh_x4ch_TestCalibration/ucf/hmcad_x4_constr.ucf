@@ -440,21 +440,23 @@ NET "in_clk_20MHz" LOC = M9;
 NET "pulse_n" LOC = C8;
 NET "pulse_p" LOC = D8;
 
-#NET "spifi_sck" CLOCK_DEDICATED_ROUTE = FALSE;
+NET "controls_out[0]" LOC = T8;
+NET "controls_out[1]" LOC = T6;
+NET "controls_out[2]" LOC = T7;
+NET "controls_out[3]" LOC = T5;
+
+
+NET "spifi_sck" CLOCK_DEDICATED_ROUTE = FALSE;
 #PIN "spifi_sck_bufg_BUFG.O" CLOCK_DEDICATED_ROUTE = FALSE;
 #NET "spifi_cs" CLOCK_DEDICATED_ROUTE = FALSE;
 #NET "fpga_sck" CLOCK_DEDICATED_ROUTE = FALSE;
 
 
+NET "DCM_xCLK[0]" TNM_NET = "dcm_clk0";
+TIMESPEC TS_dcm_clk0 = PERIOD "dcm_clk0" 8 ns HIGH 50 %;
 
+NET "DCM_xCLK[1]" TNM_NET = "dcm_clk2x";
+TIMESPEC TS_dcm_clk2x = PERIOD "dcm_clk2x" 4 ns HIGH 50 %;
 
-
-# PIN "hmcad_x4_block_inst/adc_block_gen[2].adc0_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/bufg_pll_x1.O" CLOCK_DEDICATED_ROUTE = FALSE;
-# PIN "hmcad_x4_block_inst/adc_block_gen[3].adc0_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/bufg_pll_x1.O" CLOCK_DEDICATED_ROUTE = FALSE;
-# PIN "hmcad_x4_block_inst/adc_block_gen[1].adc0_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/bufg_pll_x1.O" CLOCK_DEDICATED_ROUTE = FALSE;
-# PIN "hmcad_x4_block_inst/adc_block_gen[0].adc0_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/bufg_pll_x1.O" CLOCK_DEDICATED_ROUTE = FALSE;
-# PIN "hmcad_x4_block_inst/adc_block_gen[3].adc0_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/bufio2_2clk_inst.DIVCLK" CLOCK_DEDICATED_ROUTE = FALSE;
-# PIN "hmcad_x4_block_inst/adc_block_gen[2].adc0_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/bufio2_2clk_inst.DIVCLK" CLOCK_DEDICATED_ROUTE = FALSE;
-
-
-
+NET "DCM_xCLK[2]" TNM_NET = "dcm_clk2x180";
+TIMESPEC TS_dcm_clk2x180 = PERIOD "dcm_clk2x180" 4 ns HIGH 50 %;
