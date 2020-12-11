@@ -76,8 +76,8 @@ port 	(
 	cal_master		: out std_logic ;				-- Output to cal pins on master IODELAY2s
 	cal_slave		: out std_logic ;				-- Output to cal pins on slave IODELAY2s
 	rst_out			: out std_logic ;				-- Output to rst pins on master & slave IODELAY2s
-	ce			: out std_logic_vector(D-1 downto 0) ;  	-- Outputs to ce pins on IODELAY2s
-	inc			: out std_logic_vector(D-1 downto 0) ;  	-- Outputs to inc pins on IODELAY2s
+	ce			    : out std_logic_vector(D-1 downto 0) ;  	-- Outputs to ce pins on IODELAY2s
+	inc			    : out std_logic_vector(D-1 downto 0) ;  	-- Outputs to inc pins on IODELAY2s
 	debug			: out std_logic_vector((3*D)+5 downto 0)) ;  	-- Debug bus, 3D+5 = 3 lines per input (from inc, mux and ce) + 6, leave nc if debug not required
 end phase_detector ;
 

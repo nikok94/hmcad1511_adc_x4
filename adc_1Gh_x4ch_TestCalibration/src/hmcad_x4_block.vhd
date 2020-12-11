@@ -207,7 +207,7 @@ aFifo_inst : entity aFifo
 data_recorder_inst :  entity data_recorder
     generic map(
       c_max_num_data            => c_max_num_data,
-      c_start_delay             => 14
+      c_start_delay             => 7
     )
     Port map( 
       rst                       => recx_rst(i),

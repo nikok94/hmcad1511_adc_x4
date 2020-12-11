@@ -101,7 +101,7 @@ entity hmcad_x4_top is
         clk_dd                  : in std_logic;
         cs_dd                   : in std_logic;
         
-        controls_out            : out std_logic_vector(3 downto 0);
+        controls_out            : out std_logic_vector(4 downto 0);
         
         pulse_n                 : out std_logic := '0';
         pulse_p                 : out std_logic := '0'
@@ -112,6 +112,7 @@ end hmcad_x4_top;
 architecture Behavioral of hmcad_x4_top is
     constant C_BURST_WIDTH_SPIFI        : integer := 16;
     constant c_max_num_data             : integer := 128;  --2048;
+    constant qspi_num_slave_port        : integer := 5;
     signal sys_rst                      : std_logic;
     signal pll_lock                     : std_logic;
     signal clk_125MHz                   : std_logic;
@@ -194,10 +195,10 @@ architecture Behavioral of hmcad_x4_top is
     signal hmcad_x_data                 : std_logic_vector(4*64 - 1 downto 0);
     signal hmcad_x_int                  : std_logic_vector(4 - 1 downto 0);
 
-    signal qspi_x_clk                   : std_logic_vector(4 - 1 downto 0);
-    signal qspi_x_cs_up                 : std_logic_vector(4 - 1 downto 0);
-    signal qspi_x_ready                 : std_logic_vector(4 - 1 downto 0);
-    signal qspi_x_data                  : std_logic_vector(4*64 - 1 downto 0);
+    signal qspi_x_clk                   : std_logic_vector(qspi_num_slave_port - 1 downto 0);
+    signal qspi_x_cs_up                 : std_logic_vector(qspi_num_slave_port - 1 downto 0);
+    signal qspi_x_ready                 : std_logic_vector(qspi_num_slave_port - 1 downto 0);
+    signal qspi_x_data                  : std_logic_vector(qspi_num_slave_port*64 - 1 downto 0);
 
     signal fifo_full_out                : std_logic_vector(4 - 1 downto 0);
     signal fifo_empty_out               : std_logic_vector(4 - 1 downto 0);
@@ -215,16 +216,18 @@ architecture Behavioral of hmcad_x4_top is
 
     signal adcx_trig_clk_out            : std_logic_vector(15 downto 0);
 
+    signal DCM_PSCLK_d                  : std_logic;
+    signal DCM_PSCLK_up                 : std_logic;
     signal DCM_PSCLK                    : std_logic;
     signal DCM_PSEN                     : std_logic;
     signal DCM_PSINCDEC                 : std_logic;
     signal DCM_PSDONE                   : std_logic;
     signal DCM_RESET                    : std_logic;
-    signal PLL_RESET                    : std_logic := '0';
     signal DCM_LOCKED                   : std_logic;
     signal PLL_LOCKED                   : std_logic;
     signal DCM_STATUS                   : std_logic_vector(7 downto 0);
-    signal DCM_COUNTER                  : integer;
+    --signal DCM_COUNTER                  : integer;
+    signal DCM_COUNTER                  : std_logic_vector(8 downto 0);
 
     signal dcm_state                    : integer;
     signal dcm_div                      : std_logic_vector(1 downto 0);
@@ -256,12 +259,37 @@ architecture Behavioral of hmcad_x4_top is
     signal dcm_clk2x0_sync_up           : std_logic;
     signal dcm_clk2x0_sync_down         : std_logic;
     signal dcm_clk2x180_sync_up         : std_logic;
-                                        
+
     signal Data_in                      : std_logic_vector(15 downto 0);
     signal fclk_trig_vec_s              : std_logic_vector(15 downto 0);
+    signal fclk_trig_vec_stable         : std_logic_vector(15 downto 0);
+    signal fclk_trig_vec_sd             : std_logic_vector(15 downto 0);
+    type fclkPhaseType   is array (adcx_fclk_out'length*4 - 1 downto 0) of std_logic_vector(DCM_COUNTER'length+adcx_fclk_out'length*2-1 downto 0);
+    signal fclkInfo                     : fclkPhaseType := (0=> x"000000",
+                                                            1=> x"000001",
+                                                            2=> x"000002",
+                                                            3=> x"000003",
+                                                            4=> x"000004",
+                                                            5=> x"000005",
+                                                            6=> x"000006",
+                                                            7=> x"000007",
+                                                            8=> x"000008",
+                                                            9=> x"000009",
+                                                            10=> x"00000a",
+                                                            11=> x"00000b",
+                                                            12=> x"00000c",
+                                                            13=> x"00000d",
+                                                            14=> x"00000e",
+                                                            15=> x"00000f");
+    signal stable_status                : std_logic_vector(adcx_fclk_out'length - 1 downto 0);
+    signal stable_status_d              : std_logic_vector(adcx_fclk_out'length - 1 downto 0);
+    signal fclk_cnt_ris                 : std_logic_vector(adcx_fclk_out'length - 1 downto 0);
+    signal fclkInfo_cnt                 : integer range 0 to adcx_fclk_out'length*4 - 1;
+    signal fclk_qspi_data               : std_logic_vector(63 downto 0);
+    signal fclk_qspi_cnt                : integer;
+    signal fclk_qspi_rdy                : std_logic;
+    signal fclk_qspi_rst                : std_logic;
 
-    
-    
 begin
 
 rst <= infrst_rst_out;
@@ -355,7 +383,8 @@ end process;
 
 dd(dd'length - 1 downto 2) <= (others => 'Z');
 
-controls_out <= adcx_fclk_out;
+controls_out(3 downto 0) <= adcx_fclk_out;
+controls_out(4) <= dcm_clk2x0_sync_up;
 
 
 sys_rst <= (not xc_sys_rstn);
@@ -560,7 +589,7 @@ hmcad_x4_block_inst : entity hmcad_x4_block
     slave_x_valid           => hmcad_x_valid,
     slave_x_ready           => hmcad_x_ready,
     slave_x_data            => hmcad_x_data ,
-    slave_x_cs_up           => qspi_x_cs_up,
+    slave_x_cs_up           => qspi_x_cs_up(3 downto 0),
     
     recorder_rst            => hmcad_buffer_rst,
 
@@ -572,6 +601,83 @@ hmcad_x4_block_inst : entity hmcad_x4_block
 
   );
 
+--process(hmcad_x4_block_rst, clk_125MHz)
+--begin
+--  if (hmcad_x4_block_rst = '1') then
+--    dcm_state       <= 0;
+--    DCM_PSCLK       <= '0';
+--    DCM_PSEN        <= '0';
+--    DCM_PSINCDEC    <= '0';
+--    DCM_RESET       <= '1';
+--    DCM_COUNTER     <= 0;
+--    PLL_RESET <= '1';
+--    dcm_div <= (others => '0');
+--    DCM_Sleep_counter <= 0;
+--  elsif rising_edge(clk_125MHz) then
+--    dcm_div <= dcm_div + 1; 
+--    if (dcm_div = "00") then
+--      DCM_PSCLK <= not DCM_PSCLK;
+--    end if;
+--    case (dcm_state) is
+--      when 0 =>
+--        DCM_RESET <= '1';
+--        if (DCM_Sleep_counter < 125000) then
+--          DCM_Sleep_counter <= DCM_Sleep_counter + 1;
+--        else
+--          dcm_state <= 7;
+--        end if;
+--      when 7 =>
+--        DCM_RESET <= '0';
+--        PLL_RESET <= '0';
+--        if (DCM_LOCKED = '1') then
+--          dcm_state <= 1;
+--        end if;
+--      when 1 => 
+--        if ((m_fcb_wrreq = '1') and m_fcb_addr = SPIRegistersStrucrure'pos(TestReg)) then
+--          DCM_PSINCDEC <= m_fcb_wrdata(0);
+--          if (DCM_STATUS(0) = '1') then
+--            if ((DCM_COUNTER > 0) and (m_fcb_wrdata(0) = '0')) then
+--              dcm_state <= 2;
+--            elsif ((DCM_COUNTER < 0) and (m_fcb_wrdata(0) = '1')) then
+--              dcm_state <= 2;
+--            end if;
+--          else
+--            dcm_state <= 2;
+--          end if;
+--        end if;
+--      when 2 =>
+--        if (DCM_PSCLK = '1') then
+--          dcm_state <= 3;
+--        end if;
+--      when 3 =>
+--        if (DCM_PSCLK = '0')then
+--          DCM_PSEN <= '1';
+--          dcm_state <= 4;
+--        end if;
+--      when 4 =>
+--        if (DCM_PSCLK = '1') then
+--          if (DCM_PSINCDEC = '1') then
+--            DCM_COUNTER <= DCM_COUNTER + 1;
+--          else
+--            DCM_COUNTER <= DCM_COUNTER - 1;
+--          end if;
+--          dcm_state <= 5;
+--        end if;
+--      when 5 =>
+--        if (DCM_PSCLK = '0')then
+--          DCM_PSEN <= '0';
+--          dcm_state <= 6;
+--        end if;
+--      when 6 =>
+--        if (DCM_PSDONE = '1') then
+--          dcm_state <= 1;
+--        end if;
+--      when others =>
+--        dcm_state <= 0;
+--    end case;
+--  end if;
+--end process;
+
 process(hmcad_x4_block_rst, clk_125MHz)
 begin
   if (hmcad_x4_block_rst = '1') then
@@ -580,12 +686,12 @@ begin
     DCM_PSEN        <= '0';
     DCM_PSINCDEC    <= '0';
     DCM_RESET       <= '1';
-    DCM_COUNTER     <= 0;
-    PLL_RESET <= '1';
     dcm_div <= (others => '0');
     DCM_Sleep_counter <= 0;
   elsif rising_edge(clk_125MHz) then
     dcm_div <= dcm_div + 1; 
+    
+    fclk_trig_vec_sd <= fclk_trig_vec_s;
     if (dcm_div = "00") then
       DCM_PSCLK <= not DCM_PSCLK;
     end if;
@@ -595,59 +701,136 @@ begin
         if (DCM_Sleep_counter < 125000) then
           DCM_Sleep_counter <= DCM_Sleep_counter + 1;
         else
-          dcm_state <= 7;
+          if (m_fcb_wrreq = '1') and (m_fcb_addr = 7) then
+            dcm_state <= 1;
+            DCM_Sleep_counter <= 0;
+          end if;
         end if;
-      when 7 =>
-        DCM_RESET <= '0';
-        PLL_RESET <= '0';
+      when 1 =>
+      
+        if (DCM_RESET = '1') then
+          DCM_RESET <= '0';
+        end if;
+        
         if (DCM_LOCKED = '1') then
-          dcm_state <= 1;
-        end if;
-      when 1 => 
-        if ((m_fcb_wrreq = '1') and m_fcb_addr = SPIRegistersStrucrure'pos(TestReg)) then
-          DCM_PSINCDEC <= m_fcb_wrdata(0);
-          if (DCM_STATUS(0) = '1') then
-            if ((DCM_COUNTER > 0) and (m_fcb_wrdata(0) = '0')) then
-              dcm_state <= 2;
-            elsif ((DCM_COUNTER < 0) and (m_fcb_wrdata(0) = '1')) then
-              dcm_state <= 2;
+          if (DCM_STATUS(0) /= '1') then
+            if (DCM_PSCLK = '0') then
+              DCM_PSINCDEC <= '1';
+              DCM_PSEN <= '1';
             end if;
           else
+            dcm_state <= 3;
+            stable_status <= (others => '1');
+            stable_status_d <= (others => '0');
+            fclk_cnt_ris <= (others => '0');
+            fclkInfo_cnt <= 0;
+            fclkInfo <= (others => (others => '1'));
+            DCM_Sleep_counter <= 0;
+          end if;
+          
+          if ((DCM_PSEN = '1') and (DCM_PSCLK = '1')) then
             dcm_state <= 2;
+          end if;
+        else
+          if (DCM_Sleep_counter < 62500000) then
+            DCM_Sleep_counter <= DCM_Sleep_counter + 1;
+          else
+            dcm_state <= 0;
+            DCM_Sleep_counter <= 0;
           end if;
         end if;
       when 2 =>
-        if (DCM_PSCLK = '1') then
-          dcm_state <= 3;
-        end if;
-      when 3 =>
-        if (DCM_PSCLK = '0')then
-          DCM_PSEN <= '1';
-          dcm_state <= 4;
-        end if;
-      when 4 =>
-        if (DCM_PSCLK = '1') then
-          if (DCM_PSINCDEC = '1') then
-            DCM_COUNTER <= DCM_COUNTER + 1;
-          else
-            DCM_COUNTER <= DCM_COUNTER - 1;
-          end if;
-          dcm_state <= 5;
-        end if;
-      when 5 =>
-        if (DCM_PSCLK = '0')then
+        if (DCM_PSCLK = '0') then
           DCM_PSEN <= '0';
-          dcm_state <= 6;
         end if;
-      when 6 =>
+        
         if (DCM_PSDONE = '1') then
           dcm_state <= 1;
         end if;
+      when 3 =>
+        if (DCM_Sleep_counter < 1250000) then
+          DCM_Sleep_counter <= DCM_Sleep_counter + 1;
+          i_loop : for i in 0 to adcx_fclk_out'length - 1 loop
+            if (fclk_trig_vec_sd(2*i + 1 downto 2*i) /= fclk_trig_vec_s(2*i + 1 downto 2*i)) then
+              stable_status(i) <= '0';
+            end if;
+          end loop;
+        else
+          stable_status_d <= stable_status;
+          ii_loop : for i in 0 to adcx_fclk_out'length - 1 loop
+            if (stable_status(i) = '1') then
+              fclk_trig_vec_stable(2*i + 1 downto 2*i) <= fclk_trig_vec_s(2*i + 1 downto 2*i);
+            end if;
+
+            if ((stable_status_d(i) = '1') and (stable_status(i) = '0')) then
+              if (fclk_trig_vec_stable(2*i+1) /= fclk_trig_vec_stable(2*i)) then
+                fclkInfo(fclkInfo_cnt)(DCM_COUNTER'length+i*2 + 1 downto DCM_COUNTER'length+i*2) <= fclk_trig_vec_stable(2*i+1 downto 2*i);
+                fclk_cnt_ris(i) <= '1';
+              end if;
+            end if;
+          end loop;
+          
+          fclkInfo(fclkInfo_cnt)(DCM_COUNTER'length - 1 downto 0) <= DCM_COUNTER;
+          
+          if (DCM_PSCLK = '0') then
+            DCM_PSINCDEC <= '0';
+            DCM_PSEN <= '1'; 
+            dcm_state <= 4;
+          end if;
+        end if;
+      when 4 =>
+        if (fclk_cnt_ris /= 0) then
+          fclkInfo_cnt <= fclkInfo_cnt + 1;
+          
+          fclk_cnt_ris <= (others => '0');
+        end if;
+        if (DCM_PSCLK = '0') then
+          DCM_PSEN <= '0';
+        end if;
+        if (DCM_PSDONE = '1') then
+          if (DCM_STATUS(0) = '1') then
+            dcm_state <= 6;
+          else
+            dcm_state <= 5;
+            DCM_Sleep_counter <= 0;
+          end if;
+        end if;
+      when 5 =>
+        if (DCM_Sleep_counter < 1250000) then
+          DCM_Sleep_counter <= DCM_Sleep_counter + 1;
+        else
+          DCM_Sleep_counter <= 0;
+          dcm_state <= 3;
+        end if;
+      when 6 =>
+        
       when others =>
         dcm_state <= 0;
     end case;
   end if;
 end process;
+
+DCM_COUNTER_proc :
+  process(clk_125MHz, DCM_RESET)
+  begin
+    if (DCM_RESET = '1') then
+      DCM_COUNTER <= (others => '0');
+      DCM_PSCLK_d <= '0';
+    elsif rising_edge(clk_125MHz) then
+      DCM_PSCLK_d <= DCM_PSCLK;
+      DCM_PSCLK_up <= (not DCM_PSCLK_d) and DCM_PSCLK;
+      if ((DCM_PSCLK_up = '1') and (DCM_STATUS(0) /= '1')) then
+        if (DCM_PSEN = '1') then
+          if (DCM_PSINCDEC = '1') then
+            DCM_COUNTER <= DCM_COUNTER + 1;
+          else
+            DCM_COUNTER <= DCM_COUNTER - 1;
+          end if;
+        end if;
+      end if;
+    end if;
+  end process;
+
 
 dcm_sp_inst: DCM_SP
   generic map
@@ -688,6 +871,7 @@ dcm_sp_inst: DCM_SP
     DSSEN                 => '0');
 
 DCM_CLKIN <= hmcad_x_clk(0);
+
 
 
   -- Output buffering
@@ -737,84 +921,6 @@ DCM_CLKIN <= hmcad_x_clk(0);
       end if;
     end process;
   end generate;
---process(DCM_CLK2X0, DCM_LOCKED)
---  begin
---    if (DCM_LOCKED = '0') then
---      WriteEn_in <= '0';
---      dcm_clk2x0_sync_up <= '0';
---      dcm_clk2x0_sync_vec <= (others => '0');
---    elsif rising_edge(DCM_CLK2X0) then
---      dcm_clk2x0_sync_vec(0) <= DCM_CLK1X0_DIV2;
---      dcm_clk2x0_sync_vec(dcm_clk2x0_sync_vec'length - 1 downto 1) <= dcm_clk2x0_sync_vec(dcm_clk2x0_sync_vec'length - 2 downto 0);
---      
---      dcm_clk2x0_sync_up <= (not dcm_clk2x0_sync_vec(dcm_clk2x0_sync_vec'length - 1)) and dcm_clk2x0_sync_vec(dcm_clk2x0_sync_vec'length - 2);
---      dcm_clk2x0_sync_down <= (not dcm_clk2x0_sync_vec(dcm_clk2x0_sync_vec'length - 2)) and dcm_clk2x0_sync_vec(dcm_clk2x0_sync_vec'length - 1);
---      
---      if (dcm_clk2x0_sync_down = '1') then
---        Data_in <= fclk_trig_vec_sync_t;
---        WriteEn_in <= '1';
---      else 
---        WriteEn_in <= '0';
---      end if;
---    end if;
---  end process;
---
---process(DCM_CLK2X180, DCM_LOCKED)
---  begin
---    if (DCM_LOCKED = '0') then
---      dcm_clk2x180_sync_up <= '0';
---      dcm_clk2x180_sync_vec <= (others => '0');
---    elsif rising_edge(DCM_CLK2X180) then
---      dcm_clk2x180_sync_vec(0) <= DCM_CLK1X0_DIV2;
---      dcm_clk2x180_sync_vec(dcm_clk2x180_sync_vec'length - 1 downto 1) <= dcm_clk2x180_sync_vec(dcm_clk2x180_sync_vec'length - 2 downto 0);
---
---      dcm_clk2x180_sync_up <= (not dcm_clk2x180_sync_vec(dcm_clk2x180_sync_vec'length - 1)) and dcm_clk2x180_sync_vec(dcm_clk2x180_sync_vec'length - 2);
---    end if;
---  end process;
---
---  process(DCM_CLK1X0, DCM_RESET)
---  begin
---    if (DCM_RESET = '1') then
---      DCM_CLK1X0_DIV2 <= '0';
---    elsif rising_edge(DCM_CLK1X0) then
---      DCM_CLK1X0_DIV2 <= not DCM_CLK1X0_DIV2;
---    end if;
---  end process;
---
---fclki_gen : for i in 0 to 3 generate
---
---  process(DCM_CLK2X0)
---  begin
---    if rising_edge(DCM_CLK2X0) then
---      fclk_trig_vec(4*i + 1) <= adcx_fclk_out(i);
---      fclk_trig_vec(4*i + 3) <= fclk_trig_vec(4*i + 1);
---      
---      if (dcm_clk2x0_sync_up = '1') then
---        fclk_trig_vec_sync(4*i + 1) <= fclk_trig_vec(4*i + 1);
---        fclk_trig_vec_sync(4*i + 3) <= fclk_trig_vec(4*i + 3);
---      end if;
---      
---      fclk_trig_vec_sync_t(4*i + 1) <= fclk_trig_vec_sync(4*i + 1);
---      fclk_trig_vec_sync_t(4*i + 3) <= fclk_trig_vec_sync(4*i + 3);
---    end if;
---  end process;
---
---  process(DCM_CLK2X180)
---  begin
---    if rising_edge(DCM_CLK2X180) then
---      fclk_trig_vec(4*i) <= adcx_fclk_out(i);
---      fclk_trig_vec(4*i + 2) <= fclk_trig_vec(4*i);
---      if (dcm_clk2x180_sync_up = '1') then
---        fclk_trig_vec_sync(4*i) <= fclk_trig_vec(4*i);
---        fclk_trig_vec_sync(4*i + 2) <= fclk_trig_vec(4*i + 2);
---      end if;
---      
---      fclk_trig_vec_sync_t(4*i) <= fclk_trig_vec_sync(4*i);
---      fclk_trig_vec_sync_t(4*i + 2) <= fclk_trig_vec_sync(4*i + 2);
---    end if;
---  end process;
---
---end generate;
 
 aFifo_inst : entity aFifo
     generic map(
@@ -838,21 +944,59 @@ aFifo_inst : entity aFifo
 
   aFifo_EReadEn_in <= not aFifo_Empty_out;
 
-process(clk_125MHz)
+--process(clk_125MHz)
+--begin
+--  if rising_edge(clk_125MHz) then
+--    if (qspi_x_cs_up(qspi_x_cs_up'length - 1) = '1') then
+--      fclk_qspi_cnt <= 0;
+--    else
+--      if (qspi_x_ready(qspi_x_ready'length - 1) = '1') then
+--        fclk_qspi_cnt <= fclk_qspi_cnt + 1;
+--      end if;
+--    end if;
+--    fclk_qspi_data(DCM_COUNTER'length+adcx_fclk_out'length*2-1 downto 0) <= fclkInfo(fclk_qspi_cnt);
+--    fclk_qspi_data(fclk_qspi_data'length - 1 downto DCM_COUNTER'length+adcx_fclk_out'length*2) <= (others => '0');
+--  end if;
+--end process;
+
+--process(clk_125MHz)
+--begin
+--  if rising_edge(clk_125MHz) then
+--    if (qspi_x_cs_up(qspi_x_cs_up'length - 1) = '1') then
+--      fclk_qspi_cnt <= 0;
+--    else
+--      if (qspi_x_ready(qspi_x_ready'length - 1) = '1') then
+--        fclk_qspi_cnt <= fclk_qspi_cnt + 1;
+--      end if;
+--    end if;
+--    fclk_qspi_data(DCM_COUNTER'length+adcx_fclk_out'length*2-1 downto 0) <= fclkInfo(fclk_qspi_cnt);
+--    fclk_qspi_data(fclk_qspi_data'length - 1 downto DCM_COUNTER'length+adcx_fclk_out'length*2) <= conv_std_logic_vector(fclk_qspi_cnt, fclk_qspi_data'length - (DCM_COUNTER'length+adcx_fclk_out'length*2));
+--  end if;
+--end process;
+
+process(clk_125MHz, fclk_qspi_rst)
 begin
-  if rising_edge(clk_125MHz) then
-    frame_imag(15 downto 0) <= fclk_trig_vec_s;
+  if (fclk_qspi_rst = '1') then
+    fclk_qspi_cnt <= 0;
+  elsif rising_edge(clk_125MHz) then
+    if (fclk_qspi_rdy = '1') then
+      fclk_qspi_cnt <= fclk_qspi_cnt + 1;
+    end if;
+    fclk_qspi_data <= conv_std_logic_vector(fclk_qspi_cnt, 64);
   end if;
 end process;
 
-int_adcx <= hmcad_x_int;
-qspi_x_clk <= hmcad_x_clk;
-hmcad_x_ready <= qspi_x_ready;
-qspi_x_data <= hmcad_x_data;
+int_adcx <=  hmcad_x_int;
+qspi_x_clk <= clk_125MHz & hmcad_x_clk;
+hmcad_x_ready <= qspi_x_ready(3 downto 0);
+qspi_x_data <= fclk_qspi_data & hmcad_x_data;
+
+fclk_qspi_rdy <= qspi_x_ready(4);
+fclk_qspi_rst <= qspi_x_cs_up(4);
 
 QSPI_interconnect_inst : entity QSPI_interconnect
   Generic map(
-    c_num_slave_port    => 4,
+    c_num_slave_port    => qspi_num_slave_port,
     c_data_width        => 64,
     c_command_width     => 8,
     C_CPHA              => '0',

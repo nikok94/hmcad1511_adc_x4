@@ -28,6 +28,7 @@ architecture Behavioral of spi_data_receiver is
   signal ssck           : std_logic;
   signal input_reg      : std_logic_vector(C_D_WIDTH - 1 downto 0);
   signal sck_counter    : integer range 0 to C_D_WIDTH - 1 := 0;
+  signal cmd_valid      : std_logic;
 
 begin
 
@@ -67,18 +68,19 @@ sck_counter_proc :
   begin
     if (CS = '1') then
       sck_counter <= 0;
-      VALID <= '0';
+      cmd_valid <= '0';
     elsif rising_edge(ssck) then
       if (sck_counter = C_D_WIDTH - 1) then
         sck_counter <= 0;
-        VALID <= '1';
+        cmd_valid <= '1';
       else
         sck_counter <= sck_counter + 1;
-        VALID <= '0';
+        cmd_valid <= '0';
       end if;
     end if;
   end process;
 
+VALID <= cmd_valid;
 DATA <= input_reg;
 
 end Behavioral;

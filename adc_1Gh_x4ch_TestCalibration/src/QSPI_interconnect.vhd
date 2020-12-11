@@ -73,7 +73,8 @@ architecture Behavioral of QSPI_interconnect is
   signal mode               : std_logic;
   signal ssck               : std_logic;
   signal slave_x_data_d     : std_logic_vector(c_num_slave_port*c_data_width - 1 downto 0);
-
+  signal cmd_d_int          : integer;
+  signal cmd_int            : integer;
 begin
 
 spi_data_receiver_inst : entity spi_data_receiver
@@ -95,6 +96,9 @@ spi_data_receiver_inst : entity spi_data_receiver
 
 qspi_sio <= (others => 'Z') when qspi_t = '1' else sio;
 
+cmd_d_int <= conv_integer(unsigned(cmd_d));
+cmd_int <= conv_integer(unsigned(cmd));
+
 ready_gen_proc : for i in 0 to c_num_slave_port - 1 generate
   process(qspi_t, slave_x_clk(i))
   begin
@@ -102,7 +106,7 @@ ready_gen_proc : for i in 0 to c_num_slave_port - 1 generate
       slave_x_ready(i) <= '0';
       ready_sync_vect(i*num_stage + num_stage - 1 downto i*num_stage) <= (others => '0');
     elsif rising_edge(slave_x_clk(i)) then
-      if (cmd_d = i) then
+      if (cmd_d_int = i) then
         ready_sync_vect(i*num_stage) <= ready;
       else
         ready_sync_vect(i*num_stage) <= '0';
@@ -117,7 +121,7 @@ ready_gen_proc : for i in 0 to c_num_slave_port - 1 generate
   process(slave_x_clk(i))
   begin
     if rising_edge(slave_x_clk(i)) then
-      if (cmd_d = i) then
+      if (cmd_d_int = i) then
         rst_sync_vect(i*num_stage) <= qspi_cs;
       else
         rst_sync_vect(i*num_stage) <= '0';
@@ -161,7 +165,7 @@ ready_proc:
     elsif falling_edge(ssck) then
       if (qspi_t = '1') then
         if (cmd_valid = '1') then
-          treg <= slave_x_data(conv_integer(cmd)*c_data_width + c_data_width - 1 downto conv_integer(cmd)*c_data_width);
+          treg <= slave_x_data(cmd_int*c_data_width + c_data_width - 1 downto conv_integer(cmd)*c_data_width);
           cmd_d <= cmd;
           qspi_t <= '0';
           ready <= '1';
@@ -176,7 +180,7 @@ ready_proc:
         else
           ready <= '1';
           qcounter <= 0;
-          treg <= slave_x_data(conv_integer(cmd_d)*c_data_width + c_data_width - 1 downto conv_integer(cmd_d)*c_data_width);
+          treg <= slave_x_data(cmd_d_int*c_data_width + c_data_width - 1 downto conv_integer(cmd_d)*c_data_width);
         end if;
       end if;
     end if;
@@ -196,7 +200,7 @@ ready_proc:
     elsif falling_edge(ssck) then
       if (qspi_t = '1') then
         if (cmd_valid = '1') then
-          treg <= slave_x_data(conv_integer(cmd)*c_data_width + c_data_width - 1 downto conv_integer(cmd)*c_data_width);
+          treg <= slave_x_data(cmd_int*c_data_width + c_data_width - 1 downto conv_integer(cmd)*c_data_width);
           cmd_d <= cmd;
           qspi_t <= '0';
           ready <= '1';
@@ -211,7 +215,7 @@ ready_proc:
         else
           ready <= '1';
           qcounter <= 0;
-          treg <= slave_x_data(conv_integer(cmd_d)*c_data_width + c_data_width - 1 downto conv_integer(cmd_d)*c_data_width);
+          treg <= slave_x_data(cmd_d_int*c_data_width + c_data_width - 1 downto conv_integer(cmd_d)*c_data_width);
         end if;
       end if;
     end if;

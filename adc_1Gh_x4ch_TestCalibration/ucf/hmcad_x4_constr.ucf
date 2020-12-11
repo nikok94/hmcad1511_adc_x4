@@ -441,9 +441,10 @@ NET "pulse_n" LOC = C8;
 NET "pulse_p" LOC = D8;
 
 NET "controls_out[0]" LOC = T8;
-NET "controls_out[1]" LOC = T6;
-NET "controls_out[2]" LOC = T7;
+NET "controls_out[1]" LOC = T7;
+NET "controls_out[2]" LOC = T6;
 NET "controls_out[3]" LOC = T5;
+NET "controls_out[4]" LOC = T15;
 
 
 NET "spifi_sck" CLOCK_DEDICATED_ROUTE = FALSE;
