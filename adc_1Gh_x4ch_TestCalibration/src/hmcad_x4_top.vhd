@@ -39,6 +39,7 @@ use work.spi_adc_250x4_master;
 use work.hmcad_x4_block;
 use work.QSPI_interconnect;
 use work.aFifo;
+use work.phaseAnalyzer_basedDCM;
 
 
 entity hmcad_x4_top is
@@ -112,16 +113,18 @@ end hmcad_x4_top;
 architecture Behavioral of hmcad_x4_top is
     constant C_BURST_WIDTH_SPIFI        : integer := 16;
     constant c_max_num_data             : integer := 128;  --2048;
-    constant qspi_num_slave_port        : integer := 5;
+    constant qspi_num_slave_port        : integer := 4;
+    constant sync_stage                 : integer := 3;
     signal sys_rst                      : std_logic;
     signal pll_lock                     : std_logic;
     signal clk_125MHz                   : std_logic;
     signal clk_250MHz                   : std_logic;
     signal rst                          : std_logic;
     signal infrst_rst_out               : std_logic;
+    signal adcx_fclk_out                : std_logic_vector(3 downto 0);
     
-    type SPIRegistersStrucrure       is (TriggerSetUp, ADCEnableReg, TriggerPositionSetUp, ControlReg, BufferLength, HMCADCounter, TestReg, FRIMG32, FRIMG10, StructureLength);
-    type SPIRegistersType    is array (SPIRegistersStrucrure'pos(StructureLength) - 1 downto 0) of std_logic_vector(15 downto 0);
+    type SPIRegistersStrucrure       is (TriggerSetUp, ADCEnableReg, TriggerPositionSetUp, ControlReg, BufferLength, HMCADCounter, StructureLength);
+    type SPIRegistersType    is array (SPIRegistersStrucrure'pos(StructureLength) + 16 - 1 downto 0) of std_logic_vector(15 downto 0);
     signal SPIRegisters                 : SPIRegistersType := (
                                             SPIRegistersStrucrure'pos(TriggerSetUp) => x"7F00",
                                             SPIRegistersStrucrure'pos(ADCEnableReg) => x"0007",
@@ -153,6 +156,7 @@ architecture Behavioral of hmcad_x4_top is
     
     signal reg_address_int              : integer;
     
+    signal adcx_all_calib_done          : std_logic;
     signal adcx_calib_done              : std_logic_vector(3 downto 0);
     signal adcx_calib_done_d            : std_logic_vector(3 downto 0);
     signal adcx_tick_ms                 : std_logic_vector(3 downto 0);
@@ -182,7 +186,7 @@ architecture Behavioral of hmcad_x4_top is
     signal start_pulse                  : std_logic;
     signal pulse_out                    : std_logic;
     
-    signal pulse_sync_vec               : std_logic_vector(2 downto 0);
+    signal pulse_sync_vec               : std_logic_vector(sync_stage-1 downto 0);
     signal pulse_sync                   : std_logic;
     
     constant calid_done_delay           : integer := 10000000;
@@ -214,81 +218,17 @@ architecture Behavioral of hmcad_x4_top is
     signal adcx_dx_b_p                  : std_logic_vector(4*4 - 1 downto 0);
     signal adcx_dx_b_n                  : std_logic_vector(4*4 - 1 downto 0);
 
-    signal adcx_trig_clk_out            : std_logic_vector(15 downto 0);
 
-    signal DCM_PSCLK_d                  : std_logic;
-    signal DCM_PSCLK_up                 : std_logic;
-    signal DCM_PSCLK                    : std_logic;
-    signal DCM_PSEN                     : std_logic;
-    signal DCM_PSINCDEC                 : std_logic;
-    signal DCM_PSDONE                   : std_logic;
-    signal DCM_RESET                    : std_logic;
-    signal DCM_LOCKED                   : std_logic;
-    signal PLL_LOCKED                   : std_logic;
-    signal DCM_STATUS                   : std_logic_vector(7 downto 0);
-    --signal DCM_COUNTER                  : integer;
-    signal DCM_COUNTER                  : std_logic_vector(8 downto 0);
-
-    signal dcm_state                    : integer;
-    signal dcm_div                      : std_logic_vector(1 downto 0);
-    signal DCM_Sleep_counter            : integer;
-    signal frame_imag                   : std_logic_vector(4*8 - 1 downto 0);
-    
-    signal DCM_CLKIN                    : std_logic;
-    signal DCM_CLK2X                    : std_logic;
-    
-    signal adcx_fclk_out                : std_logic_vector(3 downto 0);
-    signal DCM_CLKFB                    : std_logic;
-    signal DCM_CLK2X0                   : std_logic;
-    signal DCM_CLK2X180                 : std_logic;
-    signal DCM_CLK1X0                   : std_logic;
-    signal DCM_xCLK                     : std_logic_vector(2 downto 0);
-    signal fclk_trig_vec                : std_logic_vector(15 downto 0):= (others => '0');
-    signal fclk_trig_vec_sync           : std_logic_vector(15 downto 0);
-    signal fclk_trig_vec_sync_t         : std_logic_vector(15 downto 0);
-    signal aFifo_Empty_out              : std_logic;
-    signal aFifo_EReadEn_in             : std_logic;
-    signal DCM_SYNC                     : std_logic;
-    signal DCM_CLK1X0_DIV2              : std_logic;
-    signal DCM_CLK1X0_DIV2_d0           : std_logic;
-    signal DCM_CLK1X0_DIV2_d1           : std_logic;
-    signal WriteEn_in                   : std_logic;
-    signal dcm_clk2x0_sync_vec          : std_logic_vector(2 downto 0);
-    signal dcm_clk2x180_sync_vec        : std_logic_vector(2 downto 0);
-                                        
-    signal dcm_clk2x0_sync_up           : std_logic;
-    signal dcm_clk2x0_sync_down         : std_logic;
-    signal dcm_clk2x180_sync_up         : std_logic;
-
-    signal Data_in                      : std_logic_vector(15 downto 0);
-    signal fclk_trig_vec_s              : std_logic_vector(15 downto 0);
-    signal fclk_trig_vec_stable         : std_logic_vector(15 downto 0);
-    signal fclk_trig_vec_sd             : std_logic_vector(15 downto 0);
-    type fclkPhaseType   is array (adcx_fclk_out'length*4 - 1 downto 0) of std_logic_vector(DCM_COUNTER'length+adcx_fclk_out'length*2-1 downto 0);
-    signal fclkInfo                     : fclkPhaseType := (0=> x"000000",
-                                                            1=> x"000001",
-                                                            2=> x"000002",
-                                                            3=> x"000003",
-                                                            4=> x"000004",
-                                                            5=> x"000005",
-                                                            6=> x"000006",
-                                                            7=> x"000007",
-                                                            8=> x"000008",
-                                                            9=> x"000009",
-                                                            10=> x"00000a",
-                                                            11=> x"00000b",
-                                                            12=> x"00000c",
-                                                            13=> x"00000d",
-                                                            14=> x"00000e",
-                                                            15=> x"00000f");
-    signal stable_status                : std_logic_vector(adcx_fclk_out'length - 1 downto 0);
-    signal stable_status_d              : std_logic_vector(adcx_fclk_out'length - 1 downto 0);
-    signal fclk_cnt_ris                 : std_logic_vector(adcx_fclk_out'length - 1 downto 0);
-    signal fclkInfo_cnt                 : integer range 0 to adcx_fclk_out'length*4 - 1;
     signal fclk_qspi_data               : std_logic_vector(63 downto 0);
     signal fclk_qspi_cnt                : integer;
     signal fclk_qspi_rdy                : std_logic;
     signal fclk_qspi_rst                : std_logic;
+    signal phaseAnalyzer_basedDCM_cont  : std_logic;
+    signal phaseAnalyzer_basedDCM_result: std_logic_vector(16*(9+2*4)-1 downto 0);
+    
+    signal bitsleep_cnt                 : std_logic_vector(4*16 - 1 downto 0);
+    
+    
 
 begin
 
@@ -376,15 +316,17 @@ process(clk_125MHz)
 begin
   if rising_edge(clk_125MHz) then
     adcx_calib_done_d <= adcx_calib_done;
-    dd(1) <= adcx_calib_done_d(3) and adcx_calib_done_d(2) and adcx_calib_done_d(1) and adcx_calib_done_d(0);
+    adcx_all_calib_done <= adcx_calib_done_d(3) and adcx_calib_done_d(2) and adcx_calib_done_d(1) and adcx_calib_done_d(0); 
+    dd(1) <= adcx_all_calib_done;
     dd(0) <= pll_lock;
   end if;
 end process;
 
 dd(dd'length - 1 downto 2) <= (others => 'Z');
 
-controls_out(3 downto 0) <= adcx_fclk_out;
-controls_out(4) <= dcm_clk2x0_sync_up;
+--controls_out(3 downto 0) <= adcx_fclk_out;
+controls_out(3 downto 0) <= (others => 'Z');
+controls_out(4) <= 'Z';
 
 
 sys_rst <= (not xc_sys_rstn);
@@ -467,12 +409,19 @@ spi_write_process :
       spi_rst_cmd <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(program_rst));
       hmcad_buffer_rst <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(buffer_rst));
       SPIRegisters(SPIRegistersStrucrure'pos(BufferLength)) <= conv_std_logic_vector(c_max_num_data, 16);
-      SPIRegisters(SPIRegistersStrucrure'pos(HMCADCounter)) <= hmcad_rst_counter;
-      SPIRegisters(SPIRegistersStrucrure'pos(TestReg))(9 downto 2) <= adcx_trig_clk_out(7 downto 0);
-      SPIRegisters(SPIRegistersStrucrure'pos(FRIMG32))(15 downto 8) <= frame_imag(3*8 + 7 downto 3*8);
-      SPIRegisters(SPIRegistersStrucrure'pos(FRIMG32))(7 downto 0) <= frame_imag(2*8 + 7 downto 2*8);
-      SPIRegisters(SPIRegistersStrucrure'pos(FRIMG10))(15 downto 8) <= frame_imag(1*8 + 7 downto 1*8);
-      SPIRegisters(SPIRegistersStrucrure'pos(FRIMG10))(7 downto 0) <= frame_imag(0*8 + 7 downto 0*8);
+--      SPIRegisters(SPIRegistersStrucrure'pos(HMCADCounter)) <= conv_std_logic_vector(dcm_state, 16);
+      --SPIRegisters(SPIRegistersStrucrure'pos(HMCADCounter)) <= bitsleep_cnt;
+      
+      loop_proc : for i in 0 to 4 - 1 loop
+        --if (phaseAnalyzer_basedDCM_cont = '1') then
+        --  SPIRegisters(SPIRegistersStrucrure'pos(StructureLength) + i) <= phaseAnalyzer_basedDCM_result(i*(9+2*4) + (9+2*3) downto i*(9+2*4));
+        --end if;
+          SPIRegisters(SPIRegistersStrucrure'pos(StructureLength) + i) <= bitsleep_cnt(i*16 + 15 downto i*16);
+          
+        --SPIRegisters(SPIRegistersStrucrure'pos(StructureLength) + i) <= fclkInfo(i)(15 downto 0);
+        --SPIRegisters(SPIRegistersStrucrure'pos(StructureLength) + i) <= conv_std_logic_vector(i, 16);
+      end loop;
+
       
     end if;
   end process;
@@ -591,6 +540,8 @@ hmcad_x4_block_inst : entity hmcad_x4_block
     slave_x_data            => hmcad_x_data ,
     slave_x_cs_up           => qspi_x_cs_up(3 downto 0),
     
+    bitsleep_cnt            => bitsleep_cnt,
+    
     recorder_rst            => hmcad_buffer_rst,
 
     adcx_calib_done         => adcx_calib_done,
@@ -601,348 +552,6 @@ hmcad_x4_block_inst : entity hmcad_x4_block
 
   );
 
---process(hmcad_x4_block_rst, clk_125MHz)
---begin
---  if (hmcad_x4_block_rst = '1') then
---    dcm_state       <= 0;
---    DCM_PSCLK       <= '0';
---    DCM_PSEN        <= '0';
---    DCM_PSINCDEC    <= '0';
---    DCM_RESET       <= '1';
---    DCM_COUNTER     <= 0;
---    PLL_RESET <= '1';
---    dcm_div <= (others => '0');
---    DCM_Sleep_counter <= 0;
---  elsif rising_edge(clk_125MHz) then
---    dcm_div <= dcm_div + 1; 
---    if (dcm_div = "00") then
---      DCM_PSCLK <= not DCM_PSCLK;
---    end if;
---    case (dcm_state) is
---      when 0 =>
---        DCM_RESET <= '1';
---        if (DCM_Sleep_counter < 125000) then
---          DCM_Sleep_counter <= DCM_Sleep_counter + 1;
---        else
---          dcm_state <= 7;
---        end if;
---      when 7 =>
---        DCM_RESET <= '0';
---        PLL_RESET <= '0';
---        if (DCM_LOCKED = '1') then
---          dcm_state <= 1;
---        end if;
---      when 1 => 
---        if ((m_fcb_wrreq = '1') and m_fcb_addr = SPIRegistersStrucrure'pos(TestReg)) then
---          DCM_PSINCDEC <= m_fcb_wrdata(0);
---          if (DCM_STATUS(0) = '1') then
---            if ((DCM_COUNTER > 0) and (m_fcb_wrdata(0) = '0')) then
---              dcm_state <= 2;
---            elsif ((DCM_COUNTER < 0) and (m_fcb_wrdata(0) = '1')) then
---              dcm_state <= 2;
---            end if;
---          else
---            dcm_state <= 2;
---          end if;
---        end if;
---      when 2 =>
---        if (DCM_PSCLK = '1') then
---          dcm_state <= 3;
---        end if;
---      when 3 =>
---        if (DCM_PSCLK = '0')then
---          DCM_PSEN <= '1';
---          dcm_state <= 4;
---        end if;
---      when 4 =>
---        if (DCM_PSCLK = '1') then
---          if (DCM_PSINCDEC = '1') then
---            DCM_COUNTER <= DCM_COUNTER + 1;
---          else
---            DCM_COUNTER <= DCM_COUNTER - 1;
---          end if;
---          dcm_state <= 5;
---        end if;
---      when 5 =>
---        if (DCM_PSCLK = '0')then
---          DCM_PSEN <= '0';
---          dcm_state <= 6;
---        end if;
---      when 6 =>
---        if (DCM_PSDONE = '1') then
---          dcm_state <= 1;
---        end if;
---      when others =>
---        dcm_state <= 0;
---    end case;
---  end if;
---end process;
-
-process(hmcad_x4_block_rst, clk_125MHz)
-begin
-  if (hmcad_x4_block_rst = '1') then
-    dcm_state       <= 0;
-    DCM_PSCLK       <= '0';
-    DCM_PSEN        <= '0';
-    DCM_PSINCDEC    <= '0';
-    DCM_RESET       <= '1';
-    dcm_div <= (others => '0');
-    DCM_Sleep_counter <= 0;
-  elsif rising_edge(clk_125MHz) then
-    dcm_div <= dcm_div + 1; 
-    
-    fclk_trig_vec_sd <= fclk_trig_vec_s;
-    if (dcm_div = "00") then
-      DCM_PSCLK <= not DCM_PSCLK;
-    end if;
-    case (dcm_state) is
-      when 0 =>
-        DCM_RESET <= '1';
-        if (DCM_Sleep_counter < 125000) then
-          DCM_Sleep_counter <= DCM_Sleep_counter + 1;
-        else
-          if (m_fcb_wrreq = '1') and (m_fcb_addr = 7) then
-            dcm_state <= 1;
-            DCM_Sleep_counter <= 0;
-          end if;
-        end if;
-      when 1 =>
-      
-        if (DCM_RESET = '1') then
-          DCM_RESET <= '0';
-        end if;
-        
-        if (DCM_LOCKED = '1') then
-          if (DCM_STATUS(0) /= '1') then
-            if (DCM_PSCLK = '0') then
-              DCM_PSINCDEC <= '1';
-              DCM_PSEN <= '1';
-            end if;
-          else
-            dcm_state <= 3;
-            stable_status <= (others => '1');
-            stable_status_d <= (others => '0');
-            fclk_cnt_ris <= (others => '0');
-            fclkInfo_cnt <= 0;
-            fclkInfo <= (others => (others => '1'));
-            DCM_Sleep_counter <= 0;
-          end if;
-          
-          if ((DCM_PSEN = '1') and (DCM_PSCLK = '1')) then
-            dcm_state <= 2;
-          end if;
-        else
-          if (DCM_Sleep_counter < 62500000) then
-            DCM_Sleep_counter <= DCM_Sleep_counter + 1;
-          else
-            dcm_state <= 0;
-            DCM_Sleep_counter <= 0;
-          end if;
-        end if;
-      when 2 =>
-        if (DCM_PSCLK = '0') then
-          DCM_PSEN <= '0';
-        end if;
-        
-        if (DCM_PSDONE = '1') then
-          dcm_state <= 1;
-        end if;
-      when 3 =>
-        if (DCM_Sleep_counter < 1250000) then
-          DCM_Sleep_counter <= DCM_Sleep_counter + 1;
-          i_loop : for i in 0 to adcx_fclk_out'length - 1 loop
-            if (fclk_trig_vec_sd(2*i + 1 downto 2*i) /= fclk_trig_vec_s(2*i + 1 downto 2*i)) then
-              stable_status(i) <= '0';
-            end if;
-          end loop;
-        else
-          stable_status_d <= stable_status;
-          ii_loop : for i in 0 to adcx_fclk_out'length - 1 loop
-            if (stable_status(i) = '1') then
-              fclk_trig_vec_stable(2*i + 1 downto 2*i) <= fclk_trig_vec_s(2*i + 1 downto 2*i);
-            end if;
-
-            if ((stable_status_d(i) = '1') and (stable_status(i) = '0')) then
-              if (fclk_trig_vec_stable(2*i+1) /= fclk_trig_vec_stable(2*i)) then
-                fclkInfo(fclkInfo_cnt)(DCM_COUNTER'length+i*2 + 1 downto DCM_COUNTER'length+i*2) <= fclk_trig_vec_stable(2*i+1 downto 2*i);
-                fclk_cnt_ris(i) <= '1';
-              end if;
-            end if;
-          end loop;
-          
-          fclkInfo(fclkInfo_cnt)(DCM_COUNTER'length - 1 downto 0) <= DCM_COUNTER;
-          
-          if (DCM_PSCLK = '0') then
-            DCM_PSINCDEC <= '0';
-            DCM_PSEN <= '1'; 
-            dcm_state <= 4;
-          end if;
-        end if;
-      when 4 =>
-        if (fclk_cnt_ris /= 0) then
-          fclkInfo_cnt <= fclkInfo_cnt + 1;
-          
-          fclk_cnt_ris <= (others => '0');
-        end if;
-        if (DCM_PSCLK = '0') then
-          DCM_PSEN <= '0';
-        end if;
-        if (DCM_PSDONE = '1') then
-          if (DCM_STATUS(0) = '1') then
-            dcm_state <= 6;
-          else
-            dcm_state <= 5;
-            DCM_Sleep_counter <= 0;
-          end if;
-        end if;
-      when 5 =>
-        if (DCM_Sleep_counter < 1250000) then
-          DCM_Sleep_counter <= DCM_Sleep_counter + 1;
-        else
-          DCM_Sleep_counter <= 0;
-          dcm_state <= 3;
-        end if;
-      when 6 =>
-        
-      when others =>
-        dcm_state <= 0;
-    end case;
-  end if;
-end process;
-
-DCM_COUNTER_proc :
-  process(clk_125MHz, DCM_RESET)
-  begin
-    if (DCM_RESET = '1') then
-      DCM_COUNTER <= (others => '0');
-      DCM_PSCLK_d <= '0';
-    elsif rising_edge(clk_125MHz) then
-      DCM_PSCLK_d <= DCM_PSCLK;
-      DCM_PSCLK_up <= (not DCM_PSCLK_d) and DCM_PSCLK;
-      if ((DCM_PSCLK_up = '1') and (DCM_STATUS(0) /= '1')) then
-        if (DCM_PSEN = '1') then
-          if (DCM_PSINCDEC = '1') then
-            DCM_COUNTER <= DCM_COUNTER + 1;
-          else
-            DCM_COUNTER <= DCM_COUNTER - 1;
-          end if;
-        end if;
-      end if;
-    end if;
-  end process;
-
-
-dcm_sp_inst: DCM_SP
-  generic map
-   (CLKDV_DIVIDE          => 2.000,
-    CLKFX_DIVIDE          => 1,
-    CLKFX_MULTIPLY        => 4,
-    CLKIN_DIVIDE_BY_2     => FALSE,
-    CLKIN_PERIOD          => 8.0,
-    CLKOUT_PHASE_SHIFT    => "VARIABLE",
-    CLK_FEEDBACK          => "2X",
-    DESKEW_ADJUST         => "SYSTEM_SYNCHRONOUS",
-    PHASE_SHIFT           => 0,
-    STARTUP_WAIT          => FALSE)
-  port map
-   -- Input clock
-   (CLKIN                 => DCM_CLKIN,
-    CLKFB                 => DCM_CLKFB,
-    -- Output clocks
-    CLK0                  => DCM_xCLK(0),
-    CLK90                 => open,
-    CLK180                => open,
-    CLK270                => open,
-    CLK2X                 => DCM_xCLK(1),
-    CLK2X180              => DCM_xCLK(2),
-    CLKFX                 => open,
-    CLKFX180              => open,
-    CLKDV                 => open,
-   -- Ports for dynamic phase shift
-    PSCLK                 => DCM_PSCLK,
-    PSEN                  => DCM_PSEN,
-    PSINCDEC              => DCM_PSINCDEC,
-    PSDONE                => DCM_PSDONE,
-   -- Other control and status signals
-    LOCKED                => DCM_LOCKED,
-    STATUS                => DCM_STATUS,
-    RST                   => DCM_RESET,
-   -- Unused pin, tie low
-    DSSEN                 => '0');
-
-DCM_CLKIN <= hmcad_x_clk(0);
-
-
-
-  -- Output buffering
-  -------------------------------------
-  clkf_buf : BUFG 
-  port map 
-   (O => DCM_CLKFB,
-    I => DCM_xCLK(1));
-
-  clkout1_buf : BUFG
-  port map
-   (O   => DCM_CLK2X0,
-    I   => DCM_xCLK(1));
-
-  clkout2_buf : BUFG
-  port map
-   (O   => DCM_CLK2X180,
-    I   => DCM_xCLK(2));
-
-  clkout3_buf : BUFG
-  port map
-   (O   => DCM_CLK1X0,
-    I   => DCM_xCLK(0));
-
-  process(DCM_CLK2X0, DCM_LOCKED)
-  begin
-    if (DCM_LOCKED = '0') then
-      WriteEn_in <= '0';
-      dcm_clk2x0_sync_up <= '0';
-    elsif rising_edge(DCM_CLK2X0) then
-      dcm_clk2x0_sync_up <= not dcm_clk2x0_sync_up;
-      if (dcm_clk2x0_sync_up = '1') then
-        Data_in <= fclk_trig_vec;
-        WriteEn_in <= '1';
-      else
-        WriteEn_in <= '0';
-      end if;
-    end if;
-  end process;
-
-  fclki_gen : for i in 0 to 3 generate
-    process(DCM_CLK2X0)
-    begin
-      if rising_edge(DCM_CLK2X0) then
-        fclk_trig_vec(2*i + 0) <= adcx_fclk_out(i);
-        fclk_trig_vec(2*i + 1) <= fclk_trig_vec(2*i + 0);
-      end if;
-    end process;
-  end generate;
-
-aFifo_inst : entity aFifo
-    generic map(
-        DATA_WIDTH => 16,
-        ADDR_WIDTH => 4
-    )
-    port map(
-        -- Reading port.
-        Data_out    => fclk_trig_vec_s,
-        Empty_out   => aFifo_Empty_out,
-        ReadEn_in   => aFifo_EReadEn_in,
-        RClk        => clk_125MHz,
-        -- Writing port.
-        Data_in     => Data_in,
-        Full_out    => open,
-        WriteEn_in  => WriteEn_in,
-        WClk        => DCM_CLK2X0,
-
-        Clear_in    => hmcad_x4_block_rst
-    );
-
-  aFifo_EReadEn_in <= not aFifo_Empty_out;
 
 --process(clk_125MHz)
 --begin
@@ -974,25 +583,26 @@ aFifo_inst : entity aFifo
 --  end if;
 --end process;
 
-process(clk_125MHz, fclk_qspi_rst)
-begin
-  if (fclk_qspi_rst = '1') then
-    fclk_qspi_cnt <= 0;
-  elsif rising_edge(clk_125MHz) then
-    if (fclk_qspi_rdy = '1') then
-      fclk_qspi_cnt <= fclk_qspi_cnt + 1;
-    end if;
-    fclk_qspi_data <= conv_std_logic_vector(fclk_qspi_cnt, 64);
-  end if;
-end process;
+--phaseAnalyzer_basedDCM_inst : entity phaseAnalyzer_basedDCM 
+--    Generic map(
+--      c_data_length     => 4,
+--      c_num_out_state   => 16,
+--      c_counter_width   => 9
+--    )
+--    Port map(
+--      dcm_clk_in    => hmcad_x_clk(0),
+--      clk_in        => clk_125MHz,
+--      rst_in        => not adcx_all_calib_done,
+--      continue_out  => phaseAnalyzer_basedDCM_cont,
+--      data_in       => adcx_fclk_out,
+--      result_out    => phaseAnalyzer_basedDCM_result
+--    );
 
 int_adcx <=  hmcad_x_int;
-qspi_x_clk <= clk_125MHz & hmcad_x_clk;
+qspi_x_clk <= hmcad_x_clk;
 hmcad_x_ready <= qspi_x_ready(3 downto 0);
-qspi_x_data <= fclk_qspi_data & hmcad_x_data;
+qspi_x_data <= hmcad_x_data;
 
-fclk_qspi_rdy <= qspi_x_ready(4);
-fclk_qspi_rst <= qspi_x_cs_up(4);
 
 QSPI_interconnect_inst : entity QSPI_interconnect
   Generic map(

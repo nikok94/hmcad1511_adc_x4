@@ -453,11 +453,3 @@ NET "spifi_sck" CLOCK_DEDICATED_ROUTE = FALSE;
 #NET "fpga_sck" CLOCK_DEDICATED_ROUTE = FALSE;
 
 
-NET "DCM_xCLK[0]" TNM_NET = "dcm_clk0";
-TIMESPEC TS_dcm_clk0 = PERIOD "dcm_clk0" 8 ns HIGH 50 %;
-
-NET "DCM_xCLK[1]" TNM_NET = "dcm_clk2x";
-TIMESPEC TS_dcm_clk2x = PERIOD "dcm_clk2x" 4 ns HIGH 50 %;
-
-NET "DCM_xCLK[2]" TNM_NET = "dcm_clk2x180";
-TIMESPEC TS_dcm_clk2x180 = PERIOD "dcm_clk2x180" 4 ns HIGH 50 %;
