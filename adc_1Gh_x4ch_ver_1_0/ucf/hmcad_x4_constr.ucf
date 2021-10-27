@@ -1,3 +1,5 @@
+INST "led_OBUF" LOC = T8;
+NET "led" LOC = T8;
 NET "spifi_sck" IOSTANDARD = LVCMOS33;
 NET "spifi_sio[2]" IOSTANDARD = LVCMOS33;
 NET "i2c_sda" IOSTANDARD = LVCMOS33;

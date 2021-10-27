@@ -38,7 +38,7 @@ use work.clock_generator;
 use work.spi_adc_250x4_master;
 use work.hmcad_x4_block;
 use work.QSPI_interconnect;
---use work.aFifo;
+--use work.phaseAnalyzer_basedDCM;
 
 
 entity hmcad_x4_top is
@@ -101,10 +101,10 @@ entity hmcad_x4_top is
         clk_dd                  : in std_logic;
         cs_dd                   : in std_logic;
         
-        pulse_n                 : out std_logic := '0';
-        pulse_p                 : out std_logic := '0';
+        controls_out            : out std_logic_vector(4 downto 0);
         
-        led                     : out std_logic
+        pulse_n                 : out std_logic := '0';
+        pulse_p                 : out std_logic := '0'
 
         );
 end hmcad_x4_top;
@@ -112,15 +112,18 @@ end hmcad_x4_top;
 architecture Behavioral of hmcad_x4_top is
     constant C_BURST_WIDTH_SPIFI        : integer := 16;
     constant c_max_num_data             : integer := 128;  --2048;
+    constant qspi_num_slave_port        : integer := 4;
+    constant sync_stage                 : integer := 3;
     signal sys_rst                      : std_logic;
     signal pll_lock                     : std_logic;
     signal clk_125MHz                   : std_logic;
     signal clk_250MHz                   : std_logic;
     signal rst                          : std_logic;
     signal infrst_rst_out               : std_logic;
+    signal adcx_fclk_out                : std_logic_vector(3 downto 0);
     
     type SPIRegistersStrucrure       is (TriggerSetUp, ADCEnableReg, TriggerPositionSetUp, ControlReg, BufferLength, HMCADCounter, StructureLength);
-    type SPIRegistersType    is array (SPIRegistersStrucrure'pos(StructureLength) - 1 downto 0) of std_logic_vector(15 downto 0);
+    type SPIRegistersType    is array (SPIRegistersStrucrure'pos(StructureLength) + 16 - 1 downto 0) of std_logic_vector(15 downto 0);
     signal SPIRegisters                 : SPIRegistersType := (
                                             SPIRegistersStrucrure'pos(TriggerSetUp) => x"7F00",
                                             SPIRegistersStrucrure'pos(ADCEnableReg) => x"0007",
@@ -152,6 +155,7 @@ architecture Behavioral of hmcad_x4_top is
     
     signal reg_address_int              : integer;
     
+    signal adcx_all_calib_done          : std_logic;
     signal adcx_calib_done              : std_logic_vector(3 downto 0);
     signal adcx_calib_done_d            : std_logic_vector(3 downto 0);
     signal adcx_tick_ms                 : std_logic_vector(3 downto 0);
@@ -181,29 +185,29 @@ architecture Behavioral of hmcad_x4_top is
     signal start_pulse                  : std_logic;
     signal pulse_out                    : std_logic;
     
-    signal pulse_sync_vec               : std_logic_vector(2 downto 0);
+    signal pulse_sync_vec               : std_logic_vector(sync_stage-1 downto 0);
     signal pulse_sync                   : std_logic;
     
     constant calid_done_delay           : integer := 10000000;
     signal trigger_start_out            : std_logic;
     signal spifi_sck_bufg               : std_logic;
-    
+
     signal hmcad_x_clk                  : std_logic_vector(4 - 1 downto 0);
     signal hmcad_x_valid                : std_logic_vector(4 - 1 downto 0);
     signal hmcad_x_ready                : std_logic_vector(4 - 1 downto 0);
     signal hmcad_x_data                 : std_logic_vector(4*64 - 1 downto 0);
     signal hmcad_x_int                  : std_logic_vector(4 - 1 downto 0);
-    
-    signal qspi_x_clk                   : std_logic_vector(4 - 1 downto 0);
-    signal qspi_x_cs_up                 : std_logic_vector(4 - 1 downto 0);
-    signal qspi_x_ready                 : std_logic_vector(4 - 1 downto 0);
-    signal qspi_x_data                  : std_logic_vector(4*64 - 1 downto 0);
-    
+
+    signal qspi_x_clk                   : std_logic_vector(qspi_num_slave_port - 1 downto 0);
+    signal qspi_x_cs_up                 : std_logic_vector(qspi_num_slave_port - 1 downto 0);
+    signal qspi_x_ready                 : std_logic_vector(qspi_num_slave_port - 1 downto 0);
+    signal qspi_x_data                  : std_logic_vector(qspi_num_slave_port*64 - 1 downto 0);
+
     signal fifo_full_out                : std_logic_vector(4 - 1 downto 0);
     signal fifo_empty_out               : std_logic_vector(4 - 1 downto 0);
     signal hmcad_rst_counter            : std_logic_vector(15 downto 0);
     signal hmcad_buffer_rst             : std_logic;
-    
+
     signal adcx_lclk_p                  : std_logic_vector(3 downto 0);
     signal adcx_lclk_n                  : std_logic_vector(3 downto 0);
     signal adcx_fclk_p                  : std_logic_vector(3 downto 0);
@@ -212,37 +216,20 @@ architecture Behavioral of hmcad_x4_top is
     signal adcx_dx_a_n                  : std_logic_vector(4*4 - 1 downto 0);
     signal adcx_dx_b_p                  : std_logic_vector(4*4 - 1 downto 0);
     signal adcx_dx_b_n                  : std_logic_vector(4*4 - 1 downto 0);
-    
-    
-    --signal slave_x_clk                  : std_logic_vector(3 - 1 downto 0);
-    --signal slave_x_ready                : std_logic_vector(3 - 1 downto 0);
-    --signal slave_x_data                 : std_logic_vector(3*64 - 1 downto 0);
-    --signal slave_x_cs_up                : std_logic_vector(3 - 1 downto 0);
-    --
-    --signal dds                           : std_logic_vector(7 downto 0);
-    
-    signal led_sig                      : std_logic;
-    signal led_counter                  : integer;
-    
-    
-begin
 
-led <= led_sig;
 
-process(clk_125MHz, rst)
+    signal fclk_qspi_data               : std_logic_vector(63 downto 0);
+    signal fclk_qspi_cnt                : integer;
+    signal fclk_qspi_rdy                : std_logic;
+    signal fclk_qspi_rst                : std_logic;
+    signal phaseAnalyzer_basedDCM_cont  : std_logic;
+    signal phaseAnalyzer_basedDCM_result: std_logic_vector(16*(9+2*4)-1 downto 0);
+    
+    signal bitsleep_cnt                 : std_logic_vector(4*16 - 1 downto 0);
+    
+    
+
 begin
-  if (rst = '1') then
-    led_counter <= 0;
-    led_sig <= '0';
-  elsif rising_edge(clk_125MHz) then
-    if (led_counter < 125000000/2) then
-      led_counter <= led_counter + 1;
-    else
-      led_counter <= 0;
-      led_sig <= not led_sig;
-    end if;
-  end if;
-end process;
 
 rst <= infrst_rst_out;
 
@@ -302,19 +289,19 @@ begin
     if (spi_rst_cmd = '1') then 
       hmcad_x4_block_rst <= '1';
       hmcad_rst_counter <= (0 => '1', others => '0');
-    elsif (adcx_tick_ms_counter0 > 1250000) then
+    elsif (adcx_tick_ms_counter0 > 2) then
       hmcad_x4_block_rst <= '1';
       hmcad_rst_counter <= hmcad_rst_counter + 1;
       adcx_tick_ms_counter0 <= 0;
-    elsif (adcx_tick_ms_counter1 > 1250000) then
+    elsif (adcx_tick_ms_counter1 > 2) then
       hmcad_x4_block_rst <= '1';
       hmcad_rst_counter <= hmcad_rst_counter + 1;
       adcx_tick_ms_counter1 <= 0;
-    elsif (adcx_tick_ms_counter2 > 1250000) then
+    elsif (adcx_tick_ms_counter2 > 2) then
       hmcad_x4_block_rst <= '1';
       hmcad_rst_counter <= hmcad_rst_counter + 1;
       adcx_tick_ms_counter2 <= 0;
-    elsif (adcx_tick_ms_counter3 > 1250000) then
+    elsif (adcx_tick_ms_counter3 > 2) then
       hmcad_x4_block_rst <= '1';
       hmcad_rst_counter <= hmcad_rst_counter + 1;
       adcx_tick_ms_counter2 <= 0;
@@ -328,12 +315,18 @@ process(clk_125MHz)
 begin
   if rising_edge(clk_125MHz) then
     adcx_calib_done_d <= adcx_calib_done;
-    dd(1) <= adcx_calib_done_d(3) and adcx_calib_done_d(2) and adcx_calib_done_d(1) and adcx_calib_done_d(0);
+    adcx_all_calib_done <= adcx_calib_done_d(3) and adcx_calib_done_d(2) and adcx_calib_done_d(1) and adcx_calib_done_d(0); 
+    dd(1) <= adcx_all_calib_done;
     dd(0) <= pll_lock;
   end if;
 end process;
 
 dd(dd'length - 1 downto 2) <= (others => 'Z');
+
+--controls_out(3 downto 0) <= adcx_fclk_out;
+controls_out(3 downto 0) <= (others => 'Z');
+controls_out(4) <= 'Z';
+
 
 sys_rst <= (not xc_sys_rstn);
 
@@ -415,9 +408,24 @@ spi_write_process :
       spi_rst_cmd <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(program_rst));
       hmcad_buffer_rst <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(buffer_rst));
       SPIRegisters(SPIRegistersStrucrure'pos(BufferLength)) <= conv_std_logic_vector(c_max_num_data, 16);
-      SPIRegisters(SPIRegistersStrucrure'pos(HMCADCounter)) <= hmcad_rst_counter;
+--      SPIRegisters(SPIRegistersStrucrure'pos(HMCADCounter)) <= conv_std_logic_vector(dcm_state, 16);
+      --SPIRegisters(SPIRegistersStrucrure'pos(HMCADCounter)) <= bitsleep_cnt;
+      
+      loop_proc : for i in 0 to 4 - 1 loop
+        --if (phaseAnalyzer_basedDCM_cont = '1') then
+        --  SPIRegisters(SPIRegistersStrucrure'pos(StructureLength) + i) <= phaseAnalyzer_basedDCM_result(i*(9+2*4) + (9+2*3) downto i*(9+2*4));
+        --end if;
+          SPIRegisters(SPIRegistersStrucrure'pos(StructureLength) + i) <= bitsleep_cnt(i*16 + 15 downto i*16);
+          
+        --SPIRegisters(SPIRegistersStrucrure'pos(StructureLength) + i) <= fclkInfo(i)(15 downto 0);
+        --SPIRegisters(SPIRegistersStrucrure'pos(StructureLength) + i) <= conv_std_logic_vector(i, 16);
+      end loop;
+
+      
     end if;
   end process;
+
+
 
 process(clk_125MHz, rst)
 begin
@@ -468,10 +476,6 @@ begin
   end if;
 end process;
 
---pulse_p <= not pulse;
---pulse_n <= pulse;
-
-
 pulse_out_proc : process(SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(7 downto 0))
 begin
   if (SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(7) = '1') then
@@ -488,15 +492,6 @@ begin
     pulse_n <= pulse_out;
   end if;
 end process;
-
---OBUFDS_inst : OBUFDS
---   generic map (
---      IOSTANDARD => "DEFAULT")
---   port map (
---      O => pulse_p,     -- Diff_p output (connect directly to top-level port)
---      OB => pulse_n,   -- Diff_n output (connect directly to top-level port)
---      I => (not pulse)      -- Buffer input 
---   );
 
 IBUFG_inst : IBUFG
 generic map (
@@ -542,24 +537,75 @@ hmcad_x4_block_inst : entity hmcad_x4_block
     slave_x_valid           => hmcad_x_valid,
     slave_x_ready           => hmcad_x_ready,
     slave_x_data            => hmcad_x_data ,
-    slave_x_cs_up           => qspi_x_cs_up,
+    slave_x_cs_up           => qspi_x_cs_up(3 downto 0),
+    
+    bitsleep_cnt            => bitsleep_cnt,
     
     recorder_rst            => hmcad_buffer_rst,
 
     adcx_calib_done         => adcx_calib_done,
     adcx_interrupt          => hmcad_x_int,
-    adcx_tick_ms            => adcx_tick_ms 
+    adcx_tick_ms            => adcx_tick_ms,
+    
+    adcx_fclk_out           => adcx_fclk_out
 
   );
 
-int_adcx <= hmcad_x_int;
+
+--process(clk_125MHz)
+--begin
+--  if rising_edge(clk_125MHz) then
+--    if (qspi_x_cs_up(qspi_x_cs_up'length - 1) = '1') then
+--      fclk_qspi_cnt <= 0;
+--    else
+--      if (qspi_x_ready(qspi_x_ready'length - 1) = '1') then
+--        fclk_qspi_cnt <= fclk_qspi_cnt + 1;
+--      end if;
+--    end if;
+--    fclk_qspi_data(DCM_COUNTER'length+adcx_fclk_out'length*2-1 downto 0) <= fclkInfo(fclk_qspi_cnt);
+--    fclk_qspi_data(fclk_qspi_data'length - 1 downto DCM_COUNTER'length+adcx_fclk_out'length*2) <= (others => '0');
+--  end if;
+--end process;
+
+--process(clk_125MHz)
+--begin
+--  if rising_edge(clk_125MHz) then
+--    if (qspi_x_cs_up(qspi_x_cs_up'length - 1) = '1') then
+--      fclk_qspi_cnt <= 0;
+--    else
+--      if (qspi_x_ready(qspi_x_ready'length - 1) = '1') then
+--        fclk_qspi_cnt <= fclk_qspi_cnt + 1;
+--      end if;
+--    end if;
+--    fclk_qspi_data(DCM_COUNTER'length+adcx_fclk_out'length*2-1 downto 0) <= fclkInfo(fclk_qspi_cnt);
+--    fclk_qspi_data(fclk_qspi_data'length - 1 downto DCM_COUNTER'length+adcx_fclk_out'length*2) <= conv_std_logic_vector(fclk_qspi_cnt, fclk_qspi_data'length - (DCM_COUNTER'length+adcx_fclk_out'length*2));
+--  end if;
+--end process;
+
+--phaseAnalyzer_basedDCM_inst : entity phaseAnalyzer_basedDCM 
+--    Generic map(
+--      c_data_length     => 4,
+--      c_num_out_state   => 16,
+--      c_counter_width   => 9
+--    )
+--    Port map(
+--      dcm_clk_in    => hmcad_x_clk(0),
+--      clk_in        => clk_125MHz,
+--      rst_in        => not adcx_all_calib_done,
+--      continue_out  => phaseAnalyzer_basedDCM_cont,
+--      data_in       => adcx_fclk_out,
+--      result_out    => phaseAnalyzer_basedDCM_result
+--    );
+
+int_adcx <=  hmcad_x_int;
 qspi_x_clk <= hmcad_x_clk;
-hmcad_x_ready <= qspi_x_ready;
+hmcad_x_ready <= qspi_x_ready(3 downto 0);
 qspi_x_data <= hmcad_x_data;
+
 
 QSPI_interconnect_inst : entity QSPI_interconnect
   Generic map(
-    c_num_slave_port    => 4,
+    c_num_slave_port    => qspi_num_slave_port,
     c_data_width        => 64,
     c_command_width     => 8,
     C_CPHA              => '0',
