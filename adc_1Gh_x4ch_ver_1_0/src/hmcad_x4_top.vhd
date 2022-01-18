@@ -437,9 +437,18 @@ pulse_proc :
     end if;
   end process;
 
-process(hmcad_x_clk(0))
+--process(hmcad_x_clk(0))
+--begin
+--  if rising_edge(hmcad_x_clk(0)) then
+--    pulse_sync_vec(0) <= pulse;
+--    pulse_sync_vec(pulse_sync_vec'length - 1 downto 1) <= pulse_sync_vec(pulse_sync_vec'length - 2 downto 0);
+--    pulse_sync <= (not pulse_sync_vec(pulse_sync_vec'length - 1)) and pulse_sync_vec(pulse_sync_vec'length - 2);
+--  end if;
+--end process;
+
+process(clk_125MHz)
 begin
-  if rising_edge(hmcad_x_clk(0)) then
+  if rising_edge(clk_125MHz) then
     pulse_sync_vec(0) <= pulse;
     pulse_sync_vec(pulse_sync_vec'length - 1 downto 1) <= pulse_sync_vec(pulse_sync_vec'length - 2 downto 0);
     pulse_sync <= (not pulse_sync_vec(pulse_sync_vec'length - 1)) and pulse_sync_vec(pulse_sync_vec'length - 2);
