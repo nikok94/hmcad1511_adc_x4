@@ -102,7 +102,9 @@ entity hmcad_x4_top is
         cs_dd                   : in std_logic;
         
         pulse_n                 : out std_logic := '0';
-        pulse_p                 : out std_logic := '0'
+        pulse_p                 : out std_logic := '0';
+        
+        led                     : out std_logic
 
         );
 end hmcad_x4_top;
@@ -219,7 +221,8 @@ architecture Behavioral of hmcad_x4_top is
     --
     --signal dds                           : std_logic_vector(7 downto 0);
     
-    
+    signal clk_cnt                      : integer;
+    signal led_s                        : std_logic;
 begin
 
 rst <= infrst_rst_out;
@@ -562,5 +565,22 @@ QSPI_interconnect_inst : entity QSPI_interconnect
     qspi_sck            => spifi_sck_bufg,
     qspi_cs             => spifi_cs
   );
+  
+led_process : process(infrst_rst_out, clk_125MHz)
+begin
+  if (infrst_rst_out = '1') then
+    led_s <= '0';
+    clk_cnt <= 0;
+  elsif rising_edge(clk_125MHz) then
+    if (clk_cnt < 125000000/2-1) then
+      clk_cnt <= clk_cnt + 1;
+    else
+      clk_cnt <= 0;
+      led_s <= not led_s; 
+    end if;
+  end if;
+end process;
+
+led <= led_s;
 
 end Behavioral;

@@ -444,3 +444,4 @@ NET "pulse_p" LOC = D8;
 NET "spifi_sck" CLOCK_DEDICATED_ROUTE = FALSE;
 PIN "spifi_sck_bufg_BUFG.O" CLOCK_DEDICATED_ROUTE = FALSE;
 
+NET "led" LOC = T8;
