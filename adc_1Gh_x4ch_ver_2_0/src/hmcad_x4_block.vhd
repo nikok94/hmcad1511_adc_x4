@@ -62,6 +62,8 @@ entity hmcad_x4_block is
     adcx_dx_a_n             : in std_logic_vector(4*4 - 1 downto 0);
     adcx_dx_b_p             : in std_logic_vector(4*4 - 1 downto 0);
     adcx_dx_b_n             : in std_logic_vector(4*4 - 1 downto 0);
+    
+    triggerOut              : out std_logic;
 --    adc0_lclk_p             : in std_logic;
 --    adc0_lclk_n             : in std_logic;
 --    adc0_fclk_p             : in std_logic;
@@ -272,7 +274,7 @@ begin
 end process;
 
 trigger <= trigger_out(0) or trigger_out(1) or trigger_out(2) or trigger_out(3);
-
+triggerOut <= trigger;
 
 adcx_gclk(0) <= adcx_gclk_out(0);
 adcx_gclk(1) <= adcx_gclk_out(1);

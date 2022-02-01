@@ -119,7 +119,7 @@ architecture Behavioral of hmcad_x4_top is
     signal rst                          : std_logic;
     signal infrst_rst_out               : std_logic;
     
-    type SPIRegistersStrucrure       is (TriggerSetUp, ADCEnableReg, TriggerPositionSetUp, ControlReg, BufferLength, HMCADCounter, StructureLength);
+    type SPIRegistersStrucrure       is (TriggerSetUp, ADCEnableReg, TriggerPositionSetUp, ControlReg, BufferLength, PulseOffset, HMCADCounter, StructureLength);
     type SPIRegistersType    is array (SPIRegistersStrucrure'pos(StructureLength) - 1 downto 0) of std_logic_vector(15 downto 0);
     signal SPIRegisters                 : SPIRegistersType := (
                                             SPIRegistersStrucrure'pos(TriggerSetUp) => x"7F00",
@@ -223,6 +223,12 @@ architecture Behavioral of hmcad_x4_top is
     
     signal clk_cnt                      : integer;
     signal led_s                        : std_logic;
+    signal adcxTrigger                  : std_logic;
+    signal adcxTriggerState             : std_logic_vector(1 downto 0);
+    signal adcxTriggerEn                : std_logic;
+    signal adcxTriggerP                 : std_logic;
+    signal adcxTriggerN                 : std_logic;
+    signal adcxTriggeCnt                : std_logic_vector(15 downto 0);
 begin
 
 rst <= infrst_rst_out;
@@ -462,15 +468,18 @@ end process;
 --pulse_n <= pulse;
 
 
-pulse_out_proc : process(SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(7 downto 0))
+pulse_out_proc : process(SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(7 downto 6), adcxTriggerEn)
 begin
   if (SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(7) = '1') then
     pulse_out <= start_pulse;
   else
     pulse_out <= pulse_sync;
   end if;
-
-  if (SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(6) = '1') then
+  
+  if (adcxTriggerEn = '1') then
+    pulse_p <= adcxTriggerP;
+    pulse_n <= adcxTriggerN;
+  elsif (SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(6) = '1') then
     pulse_p <= pulse_out;
     pulse_n <= not pulse_out;
   else
@@ -478,6 +487,8 @@ begin
     pulse_n <= pulse_out;
   end if;
 end process;
+
+
 
 --OBUFDS_inst : OBUFDS
 --   generic map (
@@ -527,6 +538,8 @@ hmcad_x4_block_inst : entity hmcad_x4_block
     adcx_dx_a_n             => adcx_dx_a_n,
     adcx_dx_b_p             => adcx_dx_b_p,
     adcx_dx_b_n             => adcx_dx_b_n,
+    
+    triggerOut              => adcxTrigger,
  
     slave_x_clk             => hmcad_x_clk  ,
     slave_x_valid           => hmcad_x_valid,
@@ -541,6 +554,39 @@ hmcad_x4_block_inst : entity hmcad_x4_block
     adcx_tick_ms            => adcx_tick_ms 
 
   );
+
+process(hmcad_x_clk(0), hmcad_x4_block_rst)
+begin
+  if (hmcad_x4_block_rst = '1') then
+    adcxTriggerEn <= '0';
+    adcxTriggerState <= (others => '0');
+  elsif rising_edge(hmcad_x_clk(0)) then
+    case adcxTriggerState is
+      when "00" => 
+        if (adcxTrigger = '1') then
+          adcxTriggerState <= "01";
+          adcxTriggeCnt <= (others => '0');
+        else 
+          adcxTriggerEn <= '0';
+        end if;
+      when "01" =>
+        if (adcxTriggeCnt < SPIRegisters(SPIRegistersStrucrure'pos(PulseOffset))) then
+          adcxTriggeCnt <= adcxTriggeCnt + 1;
+        else
+          adcxTriggerEn <= '1';
+          adcxTriggerP <= '1';
+          adcxTriggerN <= '0';
+          adcxTriggerState <= "10";
+        end if;
+      when "10" =>
+        adcxTriggerP <= '0';
+        adcxTriggerN <= '1';
+        adcxTriggerState <= (others => '0');
+      when others =>
+        adcxTriggerState <= (others => '0');
+    end case;
+  end if;
+end process;
 
 int_adcx <= hmcad_x_int;
 qspi_x_clk <= hmcad_x_clk;
