@@ -225,8 +225,10 @@ architecture Behavioral of hmcad_x4_top is
     signal clk_cnt                      : integer;
     signal led_s                        : std_logic;
     signal adcxTrigger                  : std_logic;
-    signal adcxTriggerDef               : std_logic_vector(3 downto 0);
-    signal adcxTriggerRes               : std_logic_vector(2 downto 0);
+    signal adcxTriggerDef_p             : std_logic_vector(3 downto 0);
+    signal adcxTriggerDef_n             : std_logic_vector(3 downto 0);
+    signal adcxTriggerRes_p             : std_logic_vector(2 downto 0);
+    signal adcxTriggerRes_n             : std_logic_vector(2 downto 0);
 begin
 
 rst <= infrst_rst_out;
@@ -474,12 +476,13 @@ begin
     pulse_out <= pulse_sync;
   end if;
   
+  
   if (SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(6) = '1') then
-    pulse_p <= pulse_out or adcxTriggerRes(2) ;
-    pulse_n <= not (pulse_out or adcxTriggerRes(2));
+    pulse_p <= adcxTriggerRes_p(2) or pulse_out;-- or adcxTriggerRes(2) ;
+    pulse_n <= not (adcxTriggerRes_p(2) or pulse_out);--adcxTriggerRes_n(2);--not (pulse_out or adcxTriggerRes(2));
   else
-    pulse_p <= not (pulse_out or adcxTriggerRes(2));
-    pulse_n <= pulse_out or adcxTriggerRes(2);
+    pulse_n <= adcxTriggerRes_p(2) or pulse_out;-- or adcxTriggerRes(2) ;
+    pulse_p <= not (adcxTriggerRes_p(2) or pulse_out);--adcxTriggerRes_n(2);--not (pulse_out or adcxTriggerRes(2));
   end if;
 end process;
 
@@ -558,13 +561,22 @@ defPulse0_inst_gen : for i in 0 to hmcad_x_clk'length-1 generate
       rst            => hmcad_x4_block_rst,
       delay          => SPIRegisters(SPIRegistersStrucrure'pos(PulseOffset)),
       s_in           => adcxTrigger,
-      s_out          => adcxTriggerDef(i)
+      s_out_p        => adcxTriggerDef_p(i),
+      s_out_n        => adcxTriggerDef_n(i)
     );
 end generate;
 
-adcxTriggerRes(0) <= adcxTriggerDef(0) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(0) = '1') else adcxTriggerDef(1);
-adcxTriggerRes(1) <= adcxTriggerDef(2) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(2) = '1') else adcxTriggerDef(3);
-adcxTriggerRes(2) <= adcxTriggerRes(1) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(1 downto 0) = "00") else adcxTriggerRes(0);
+adcxTriggerRes_p(0) <= adcxTriggerDef_p(0) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(0) = '1') else adcxTriggerDef_p(1);
+adcxTriggerRes_p(1) <= adcxTriggerDef_p(2) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(2) = '1') else adcxTriggerDef_p(3);
+adcxTriggerRes_p(2) <= adcxTriggerRes_p(1) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(1 downto 0) = "00") else adcxTriggerRes_p(0);
+
+adcxTriggerRes_n(0) <= adcxTriggerDef_n(0) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(0) = '1') else adcxTriggerDef_n(1);
+adcxTriggerRes_n(1) <= adcxTriggerDef_n(2) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(2) = '1') else adcxTriggerDef_n(3);
+adcxTriggerRes_n(2) <= adcxTriggerRes_n(1) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(1 downto 0) = "00") else adcxTriggerRes_n(0);
+
+--adcxTriggerRes_p(2) <= adcxTriggerDef_p(3) or adcxTriggerDef_p(2) or adcxTriggerDef_p(1) or adcxTriggerDef_p(0);
+--adcxTriggerRes_n(2) <= adcxTriggerDef_n(3) or adcxTriggerDef_n(2) or adcxTriggerDef_n(1) or adcxTriggerDef_n(0);
+
 
 int_adcx <= hmcad_x_int;
 qspi_x_clk <= hmcad_x_clk;

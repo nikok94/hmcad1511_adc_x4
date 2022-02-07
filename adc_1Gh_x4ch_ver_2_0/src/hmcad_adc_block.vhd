@@ -134,7 +134,7 @@ architecture Behavioral of hmcad_adc_block is
   signal offset_d                       : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
   signal trigger_rst                    : std_logic;
   signal deser_rst                      : std_logic;
-  signal bs_counter                     : std_logic_vector(3 downto 0);
+  signal bs_counter                     : std_logic_vector(4 downto 0);
   signal tick_counter                   : integer;
   signal rec_valid                      : std_logic;
   signal tick_ms_counter                : integer;
@@ -144,13 +144,13 @@ architecture Behavioral of hmcad_adc_block is
 begin
 
 tick_ms_proc :
-  process(gclk_bufg, areset)
+  process(gclk_bufg, areset, valid)
   begin
-    if (areset = '1') then
+    if ((areset = '1') or (valid = '0'))then
       tick_ms_counter <= 0;
       tick <= '0';
     elsif rising_edge(gclk_bufg) then
-      if tick_ms_counter < 125000 then
+      if tick_ms_counter < 124999 then
         tick_ms_counter <= tick_ms_counter + 1;
       else
         tick <= not tick;
@@ -242,7 +242,7 @@ begin
       when 0 =>
         bs_counter <= (others => '0');
         deser_rst <= '0';
-        if (tick_counter < 125) then
+        if (tick_counter < 15) then
           tick_counter <= tick_counter + 1;
         else
           state <= 1;
@@ -265,8 +265,9 @@ begin
         end if;
       when 2 =>
         deser_bitslip <= '0';
-        tick_counter <= tick_counter + 1 ;
-        if (tick_counter > 125000) then
+        if (tick_counter < 15) then
+          tick_counter <= tick_counter + 1 ;
+        else
          state <= 1 ;
         end if;
       when others =>
