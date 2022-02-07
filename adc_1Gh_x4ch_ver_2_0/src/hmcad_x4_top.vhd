@@ -38,7 +38,7 @@ use work.clock_generator;
 use work.spi_adc_250x4_master;
 use work.hmcad_x4_block;
 use work.QSPI_interconnect;
---use work.aFifo;
+use work.defPulse;
 
 
 entity hmcad_x4_top is
@@ -126,6 +126,7 @@ architecture Behavioral of hmcad_x4_top is
                                             SPIRegistersStrucrure'pos(ADCEnableReg) => x"0007",
                                             SPIRegistersStrucrure'pos(TriggerPositionSetUp) => x"0800",
                                             SPIRegistersStrucrure'pos(ControlReg) => x"0000",
+                                            SPIRegistersStrucrure'pos(PulseOffset) => x"0040",
                                             others => (others => '0')
                                             );
 
@@ -224,11 +225,8 @@ architecture Behavioral of hmcad_x4_top is
     signal clk_cnt                      : integer;
     signal led_s                        : std_logic;
     signal adcxTrigger                  : std_logic;
-    signal adcxTriggerState             : std_logic_vector(1 downto 0);
-    signal adcxTriggerEn                : std_logic;
-    signal adcxTriggerP                 : std_logic;
-    signal adcxTriggerN                 : std_logic;
-    signal adcxTriggeCnt                : std_logic_vector(15 downto 0);
+    signal adcxTriggerDef               : std_logic_vector(3 downto 0);
+    signal adcxTriggerRes               : std_logic_vector(2 downto 0);
 begin
 
 rst <= infrst_rst_out;
@@ -468,7 +466,7 @@ end process;
 --pulse_n <= pulse;
 
 
-pulse_out_proc : process(SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(7 downto 6), adcxTriggerEn)
+pulse_out_proc : process(SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(7 downto 6))
 begin
   if (SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(7) = '1') then
     pulse_out <= start_pulse;
@@ -476,15 +474,12 @@ begin
     pulse_out <= pulse_sync;
   end if;
   
-  if (adcxTriggerEn = '1') then
-    pulse_p <= adcxTriggerP;
-    pulse_n <= adcxTriggerN;
-  elsif (SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(6) = '1') then
-    pulse_p <= pulse_out;
-    pulse_n <= not pulse_out;
+  if (SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(6) = '1') then
+    pulse_p <= pulse_out or adcxTriggerRes(2) ;
+    pulse_n <= not (pulse_out or adcxTriggerRes(2));
   else
-    pulse_p <= not pulse_out;
-    pulse_n <= pulse_out;
+    pulse_p <= not (pulse_out or adcxTriggerRes(2));
+    pulse_n <= pulse_out or adcxTriggerRes(2);
   end if;
 end process;
 
@@ -555,38 +550,21 @@ hmcad_x4_block_inst : entity hmcad_x4_block
 
   );
 
-process(hmcad_x_clk(0), hmcad_x4_block_rst)
-begin
-  if (hmcad_x4_block_rst = '1') then
-    adcxTriggerEn <= '0';
-    adcxTriggerState <= (others => '0');
-  elsif rising_edge(hmcad_x_clk(0)) then
-    case adcxTriggerState is
-      when "00" => 
-        if (adcxTrigger = '1') then
-          adcxTriggerState <= "01";
-          adcxTriggeCnt <= (others => '0');
-        else 
-          adcxTriggerEn <= '0';
-        end if;
-      when "01" =>
-        if (adcxTriggeCnt < SPIRegisters(SPIRegistersStrucrure'pos(PulseOffset))) then
-          adcxTriggeCnt <= adcxTriggeCnt + 1;
-        else
-          adcxTriggerEn <= '1';
-          adcxTriggerP <= '1';
-          adcxTriggerN <= '0';
-          adcxTriggerState <= "10";
-        end if;
-      when "10" =>
-        adcxTriggerP <= '0';
-        adcxTriggerN <= '1';
-        adcxTriggerState <= (others => '0');
-      when others =>
-        adcxTriggerState <= (others => '0');
-    end case;
-  end if;
-end process;
+defPulse0_inst_gen : for i in 0 to hmcad_x_clk'length-1 generate
+
+  defPulse0_inst : entity defPulse
+    Port map( 
+      clk            => hmcad_x_clk(i),
+      rst            => hmcad_x4_block_rst,
+      delay          => SPIRegisters(SPIRegistersStrucrure'pos(PulseOffset)),
+      s_in           => adcxTrigger,
+      s_out          => adcxTriggerDef(i)
+    );
+end generate;
+
+adcxTriggerRes(0) <= adcxTriggerDef(0) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(0) = '1') else adcxTriggerDef(1);
+adcxTriggerRes(1) <= adcxTriggerDef(2) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(2) = '1') else adcxTriggerDef(3);
+adcxTriggerRes(2) <= adcxTriggerRes(1) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(1 downto 0) = "00") else adcxTriggerRes(0);
 
 int_adcx <= hmcad_x_int;
 qspi_x_clk <= hmcad_x_clk;

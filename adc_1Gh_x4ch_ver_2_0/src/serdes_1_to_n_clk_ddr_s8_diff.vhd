@@ -41,6 +41,8 @@ port 	(
     
     clkdly_m_in     : in std_logic;
     clkdly_s_in     : in std_logic;
+
+    rx_x1           : out std_logic;
     
 	rxioclkp		: out std_logic ;		-- IO Clock network
 	rxioclkn		: out std_logic ;		-- IO Clock network
@@ -139,6 +141,8 @@ bufg_pll_x1 : BUFG port map	(I => rx_bufio2_x1, O => rx_bufg_x1);
 
 clkdly_m_out <= ddly_m;
 clkdly_s_out <= ddly_s;
+
+rx_x1 <= rx_bufio2_x1;
 
 bufio2_2clk_inst : BUFIO2_2CLK generic map(
       DIVIDE			=> S)               		-- The DIVCLK divider divide-by value; default 1

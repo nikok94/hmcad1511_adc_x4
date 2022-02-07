@@ -171,6 +171,7 @@ architecture Behavioral of hmcad_x4_block is
   
   signal adcx_gclk                      : std_logic_vector(3 downto 0);
   signal adcx_gclk_out                  : std_logic_vector(3 downto 0);
+  signal adcx_clk_out                   : std_logic_vector(3 downto 0);
   type x4datatype   is array(3 downto 0) of std_logic_vector(63 downto 0);
   signal recx_data                      : x4datatype;
   signal recx_ready                     : std_logic_vector(3 downto 0);
@@ -196,6 +197,8 @@ architecture Behavioral of hmcad_x4_block is
   signal rec2_irq                       : std_logic;
   signal rec3_irq                       : std_logic;
   signal recorder_rst_vec               : std_logic_vector(3 downto 0);
+  signal adcxClock                      : std_logic_vector(2 downto 0);
+  signal adcx_enableRes                 : std_logic;
 
 
 begin
@@ -232,6 +235,7 @@ adc_block_gen : for i in 0 to recorder_rst_vec'length - 1 generate
     enable                => adcx_enable(i),
     gclk                  => adcx_gclk(i),
     gclk_out              => adcx_gclk_out(i),
+    clk_out               => adcx_clk_out(i),
     clkrxioclkp_out       => adcx_clkrxioclkp_out(i),
     clkrxioclkn_out       => adcx_clkrxioclkn_out(i),
     clkrx_serdesstrobe_out=> adcx_clkrx_serdesstrobe_out(i),
@@ -275,6 +279,42 @@ end process;
 
 trigger <= trigger_out(0) or trigger_out(1) or trigger_out(2) or trigger_out(3);
 triggerOut <= trigger;
+
+
+--BUFGMUX_inst1 : BUFGMUX
+--generic map (
+--   CLK_SEL_TYPE => "SYNC"  -- Glitchles ("SYNC") or fast ("ASYNC") clock switch-over
+--)
+--port map (
+--   O => adcxClock(0),   -- 1-bit output: Clock buffer output
+--   I0 => clk_out(1), -- 1-bit input: Clock buffer input (S=0)
+--   I1 => clk_out(0), -- 1-bit input: Clock buffer input (S=1)
+--   S => adcx_enable(0)
+--);
+--
+--BUFGMUX_inst2 : BUFGMUX
+--generic map (
+--   CLK_SEL_TYPE => "SYNC"  -- Glitchles ("SYNC") or fast ("ASYNC") clock switch-over
+--)
+--port map (
+--   O => adcxClock(1),   -- 1-bit output: Clock buffer output
+--   I0 => clk_out(3), -- 1-bit input: Clock buffer input (S=0)
+--   I1 => clk_out(2), -- 1-bit input: Clock buffer input (S=1)
+--   S => adcx_enable(2)
+--);
+--
+--adcx_enableRes <= adcx_enable(0) or adcx_enable(1);
+--
+--BUFGMUX_inst3 : BUFGMUX
+--generic map (
+--   CLK_SEL_TYPE => "SYNC"  -- Glitchles ("SYNC") or fast ("ASYNC") clock switch-over
+--)
+--port map (
+--   O => adcxClock(2),   -- 1-bit output: Clock buffer output
+--   I0 => clk_out(1), -- 1-bit input: Clock buffer input (S=0)
+--   I1 => clk_out(0), -- 1-bit input: Clock buffer input (S=1)
+--   S => adcx_enableRes
+--);
 
 adcx_gclk(0) <= adcx_gclk_out(0);
 adcx_gclk(1) <= adcx_gclk_out(1);

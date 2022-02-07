@@ -26,7 +26,7 @@ use IEEE.MATH_REAL.ALL;
 
 library work;
 use work.serdes_1_to_n_clk_ddr_s8_diff;
---use work.serdes_1_to_n_data_ddr_s8_diff;
+use work.serdes_1_to_n_data_ddr_s8_diff;
 use work.data_recorder;
 use work.trigger_capture;
 
@@ -68,6 +68,7 @@ entity hmcad_adc_block is
       enable                    : in std_logic;
       gclk                      : in std_logic;
       gclk_out                  : out std_logic;
+      clk_out                   : out std_logic;
       clkrxioclkp_out           : out std_logic;
       clkrxioclkn_out           : out std_logic;
       clkrx_serdesstrobe_out    : out std_logic;
@@ -95,28 +96,6 @@ entity hmcad_adc_block is
 end hmcad_adc_block;
 
 architecture Behavioral of hmcad_adc_block is
-  component serdes_1_to_n_data_ddr_s8_diff is 
-  generic (
-    S                       : integer := 8 ;                                -- Parameter to set the serdes factor 1..8
-    D                       : integer := 16 ;                               -- Set the number of inputs and outputs
-    DIFF_TERM               : boolean := TRUE) ;                            -- Enable or disable internal differential termination
-  port (
-    use_phase_detector      :  in std_logic ;                               -- '1' enables the phase detector logic if USE_PD = TRUE
-    datain_p                :  in std_logic_vector(D-1 downto 0) ;          -- Input from LVDS receiver pin
-    datain_n                :  in std_logic_vector(D-1 downto 0) ;          -- Input from LVDS receiver pin
-    rxioclkp                :  in    std_logic ;                            -- IO Clock network
-    rxioclkn                :  in    std_logic ;                            -- IO Clock network
-    rxserdesstrobe          :  in    std_logic ;                            -- Parallel data capture strobe
-    reset                   :  in    std_logic ;                            -- Reset line
-    gclk                    :  in    std_logic ;                            -- Global clock
-    bitslip                 :  in std_logic ;                               -- Bitslip control line
-    data_out                : out std_logic_vector((D*S)-1 downto 0) ;      -- Output data
-    debug_in                :  in std_logic_vector(1 downto 0) ;            -- Debug Inputs, set to '0' if not required
-    debug                   : out std_logic_vector((2*D)+6 downto 0)--;        -- Debug output bus, 3D+5 = 3 lines per input (from inc, mux and ce) + 6, leave nc if debug not required
-    --stat_out                : out std_logic_vector(8*D-1 downto 0)
-    ) ;
-  end component serdes_1_to_n_data_ddr_s8_diff;
-
 
   constant num_data                     : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0) := (others => '1');
   constant frame_sync_pattern           : std_logic_vector(7 downto 0) := x"0F";
@@ -319,12 +298,11 @@ serdes_1_to_n_clk_ddr_s8_diff_inst : entity serdes_1_to_n_clk_ddr_s8_diff
     clkdly_m_in     => clkdly_m_in,
     clkdly_s_in     => clkdly_s_in,
     
-    
+    rx_x1           => clk_out,
     
     rx_bufg_x1      => gclk_bufg
   );
 gclk_out <= gclk_bufg;
-
 
 clkrxioclkp_out        <= deser_clkrxioclkp;
 clkrxioclkn_out        <= deser_clkrxioclkn;
@@ -333,7 +311,7 @@ clkrx_serdesstrobe_out <= deser_clkrx_serdesstrobe;
 datain_p <= fclk_p & dx_a_p(0) & dx_b_p(0) & dx_a_p(1) & dx_b_p(1) & dx_a_p(2) & dx_b_p(2) & dx_a_p(3) & dx_b_p(3);
 datain_n <= fclk_n & dx_a_n(0) & dx_b_n(0) & dx_a_n(1) & dx_b_n(1) & dx_a_n(2) & dx_b_n(2) & dx_a_n(3) & dx_b_n(3);
 
-serdes_1_to_n_data_ddr_s8_diff_inst : serdes_1_to_n_data_ddr_s8_diff
+serdes_1_to_n_data_ddr_s8_diff_inst : entity serdes_1_to_n_data_ddr_s8_diff
   generic map(
     S             => 8,
     D             => 9, 
