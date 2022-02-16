@@ -64,6 +64,9 @@ entity hmcad_x4_block is
     adcx_dx_b_n             : in std_logic_vector(4*4 - 1 downto 0);
     
     triggerOut              : out std_logic;
+    mark_delay              : in std_logic_vector(15 downto 0);
+    mark_length             : in std_logic_vector(15 downto 0);
+    
 --    adc0_lclk_p             : in std_logic;
 --    adc0_lclk_n             : in std_logic;
 --    adc0_fclk_p             : in std_logic;
@@ -171,7 +174,6 @@ architecture Behavioral of hmcad_x4_block is
   
   signal adcx_gclk                      : std_logic_vector(3 downto 0);
   signal adcx_gclk_out                  : std_logic_vector(3 downto 0);
-  signal adcx_clk_out                   : std_logic_vector(3 downto 0);
   type x4datatype   is array(3 downto 0) of std_logic_vector(63 downto 0);
   signal recx_data                      : x4datatype;
   signal recx_ready                     : std_logic_vector(3 downto 0);
@@ -179,18 +181,7 @@ architecture Behavioral of hmcad_x4_block is
   signal recx_rst                       : std_logic_vector(3 downto 0);
   signal trigger_enable                 : std_logic_vector(3 downto 0);
   signal trigger_out                    : std_logic_vector(3 downto 0);
-  
-  signal adcx_clkrxioclkp_out           : std_logic_vector(3 downto 0);
-  signal adcx_clkrxioclkn_out           : std_logic_vector(3 downto 0);
-  signal adcx_clkrx_serdesstrobe_out    : std_logic_vector(3 downto 0);
-  signal adcx_clkrxioclkp_in            : std_logic_vector(3 downto 0);
-  signal adcx_clkrxioclkn_in            : std_logic_vector(3 downto 0);
-  signal adcx_clkrx_serdesstrobe_in     : std_logic_vector(3 downto 0);
 
-  signal adcx_clkdly_m_out              : std_logic_vector(3 downto 0);
-  signal adcx_clkdly_s_out              : std_logic_vector(3 downto 0);
-  signal adcx_clkdly_m_in               : std_logic_vector(3 downto 0);
-  signal adcx_clkdly_s_in               : std_logic_vector(3 downto 0);
   signal trigger                        : std_logic;
   signal rec0_irq                       : std_logic;
   signal rec1_irq                       : std_logic;
@@ -222,6 +213,9 @@ adc_block_gen : for i in 0 to recorder_rst_vec'length - 1 generate
 
     trigger_out           => trigger_out(i),
     trigger_in            => trigger,
+    
+    mark_delay            => mark_delay(natural(round(log2(real(c_max_num_data))))-1 downto 0),
+    mark_length           => mark_length(natural(round(log2(real(c_max_num_data))))-1 downto 0),
 
     lclk_p                => adcx_lclk_p(i),
     lclk_n                => adcx_lclk_n(i),
@@ -235,18 +229,6 @@ adc_block_gen : for i in 0 to recorder_rst_vec'length - 1 generate
     enable                => adcx_enable(i),
     gclk                  => adcx_gclk(i),
     gclk_out              => adcx_gclk_out(i),
-    clk_out               => adcx_clk_out(i),
-    clkrxioclkp_out       => adcx_clkrxioclkp_out(i),
-    clkrxioclkn_out       => adcx_clkrxioclkn_out(i),
-    clkrx_serdesstrobe_out=> adcx_clkrx_serdesstrobe_out(i),
-    clkrxioclkp_in        => adcx_clkrxioclkp_in(i),
-    clkrxioclkn_in        => adcx_clkrxioclkn_in(i),
-    clkrx_serdesstrobe_in => adcx_clkrx_serdesstrobe_in(i),
-    
-    clkdly_m_out          => adcx_clkdly_m_out(i),
-    clkdly_s_out          => adcx_clkdly_s_out(i),
-    clkdly_m_in           => adcx_clkdly_m_in(i),
-    clkdly_s_in           => adcx_clkdly_s_in(i),
 
     calib_done            => adcx_calib_done(i),
     tick_ms               => adcx_tick_ms(i),
@@ -263,16 +245,15 @@ end generate;
 
 process(mux_data_selector)
 begin
-  trigger_enable <= (others => '0');
   case(mux_data_selector) is
     when "00" =>
-      trigger_enable(0) <= '1';
+      trigger_enable <= x"1";
     when "01" => 
-      trigger_enable(1) <= '1';
+      trigger_enable <= x"2";
     when "10" =>
-      trigger_enable(2) <= '1';
+      trigger_enable <= x"4";
     when "11" =>
-      trigger_enable(3) <= '1';
+      trigger_enable <= x"8";
     when others =>
   end case;
 end process;
@@ -320,35 +301,6 @@ adcx_gclk(0) <= adcx_gclk_out(0);
 adcx_gclk(1) <= adcx_gclk_out(1);
 adcx_gclk(2) <= adcx_gclk_out(2);
 adcx_gclk(3) <= adcx_gclk_out(3);
-
-adcx_clkrxioclkp_in(0) <= adcx_clkrxioclkp_out(0);
-adcx_clkrxioclkn_in(0) <= adcx_clkrxioclkn_out(0);
-adcx_clkrx_serdesstrobe_in(0) <= adcx_clkrx_serdesstrobe_out(0);
-
-adcx_clkrxioclkp_in(1) <= adcx_clkrxioclkp_out(1);
-adcx_clkrxioclkn_in(1) <= adcx_clkrxioclkn_out(1);
-adcx_clkrx_serdesstrobe_in(1) <= adcx_clkrx_serdesstrobe_out(1);
-
-adcx_clkrxioclkp_in(2) <= adcx_clkrxioclkp_out(2);
-adcx_clkrxioclkn_in(2) <= adcx_clkrxioclkn_out(2);
-adcx_clkrx_serdesstrobe_in(2) <= adcx_clkrx_serdesstrobe_out(2);
-
-adcx_clkrxioclkp_in(3) <= adcx_clkrxioclkp_out(3);
-adcx_clkrxioclkn_in(3) <= adcx_clkrxioclkn_out(3);
-adcx_clkrx_serdesstrobe_in(3) <= adcx_clkrx_serdesstrobe_out(3);
-
-
-adcx_clkdly_m_in(0) <= adcx_clkdly_m_out(0);
-adcx_clkdly_s_in(0) <= adcx_clkdly_s_out(0);
-
-adcx_clkdly_m_in(1) <= adcx_clkdly_m_out(1);
-adcx_clkdly_s_in(1) <= adcx_clkdly_s_out(1);
-
-adcx_clkdly_m_in(2) <= adcx_clkdly_m_out(2);
-adcx_clkdly_s_in(2) <= adcx_clkdly_s_out(2);
-
-adcx_clkdly_m_in(3) <= adcx_clkdly_m_out(3);
-adcx_clkdly_s_in(3) <= adcx_clkdly_s_out(3);
 
 slave_x_valid <= recx_valid;
 slave_x_clk <= adcx_gclk;

@@ -19,6 +19,9 @@ entity data_recorder is
       rst                       : in std_logic;
       clk                       : in std_logic;
 
+      mark_delay                : in std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
+      mark_length               : in std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
+
       start                     : in std_logic;
       num_data                  : in std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
       start_offset              : in std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
@@ -45,7 +48,7 @@ architecture Behavioral of data_recorder is
   signal data_b                 : std_logic_vector(c_data_width - 1 downto 0):= (others => '0');
 --  signal q_a                    : std_logic_vector(c_data_width - 1 downto 0);
   signal q_b                    : std_logic_vector(c_data_width - 1 downto 0);
-  type sm                   is (idle_st, start_st, record_st, ready_st, push_st, addr_edge_st, addr_fall_st, ready_st1);
+  type sm                   is (idle_st, start_st, record_st, mask_delay_st, ready_st, push_st, addr_edge_st, addr_fall_st, ready_st1);
   signal state, next_state      : sm;
   signal counter_a              : std_logic_vector(natural(round(log2(real(c_max_num_data)))) - 1 downto 0);
   signal counter_b              : std_logic_vector(natural(round(log2(real(c_max_num_data)))) - 1 downto 0);
@@ -54,6 +57,7 @@ architecture Behavioral of data_recorder is
   signal count_a_max            : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
   signal count_b_max            : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
   signal compl                  : std_logic;
+  signal delay_cnt              : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
 
 begin
 
@@ -68,7 +72,7 @@ sync_proc :
   end process;
 
 next_state_proc :
-  process(state, start, counter_a, count_a_max, compl, m_ready, counter_b, count_b_max)
+  process(state, start, counter_a, count_a_max, compl, m_ready, counter_b, count_b_max, delay_cnt, mark_delay)
   begin
     next_state <= state;
     case (state) is
@@ -76,6 +80,10 @@ next_state_proc :
         next_state <= start_st;
       when start_st =>
         if (start = '1') then
+          next_state <= mask_delay_st;
+        end if;
+      when mask_delay_st =>
+        if (delay_cnt = mark_delay) then
           next_state <= record_st;
         end if;
       when record_st =>
@@ -164,6 +172,16 @@ addr_b_proc :
       end if;
     end if;
   end process;
+
+delay_cnt_proc :
+process(state, clk)
+begin
+  if (state /= mask_delay_st) then
+    delay_cnt <= (others => '0');
+  elsif rising_edge(clk) then
+    delay_cnt <= delay_cnt + 1;
+  end if;
+end process;
 
 counter_a_proc :
   process(state, clk)

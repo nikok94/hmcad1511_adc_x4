@@ -35,15 +35,6 @@ entity serdes_1_to_n_clk_ddr_s8_diff is generic (
 port 	(
 	clkin_p			:  in std_logic ;		-- Input from LVDS receiver pin
 	clkin_n			:  in std_logic ;		-- Input from LVDS receiver pin
-    
-    clkdly_m_out    : out std_logic;
-    clkdly_s_out    : out std_logic;
-    
-    clkdly_m_in     : in std_logic;
-    clkdly_s_in     : in std_logic;
-
-    rx_x1           : out std_logic;
-    
 	rxioclkp		: out std_logic ;		-- IO Clock network
 	rxioclkn		: out std_logic ;		-- IO Clock network
 	rx_serdesstrobe		: out std_logic ;		-- Parallel data capture strobe
@@ -139,16 +130,11 @@ port map (
 
 bufg_pll_x1 : BUFG port map	(I => rx_bufio2_x1, O => rx_bufg_x1);
 
-clkdly_m_out <= ddly_m;
-clkdly_s_out <= ddly_s;
-
-rx_x1 <= rx_bufio2_x1;
-
 bufio2_2clk_inst : BUFIO2_2CLK generic map(
       DIVIDE			=> S)               		-- The DIVCLK divider divide-by value; default 1
 port map (
-      I				=> clkdly_m_in,  			-- Input source clock 0 degrees
-      IB			=> clkdly_s_in,  			-- Input source clock 0 degrees
+      I				=> ddly_m,  			-- Input source clock 0 degrees
+      IB			=> ddly_s,  			-- Input source clock 0 degrees
       IOCLK			=> rxioclkp,        		-- Output Clock for IO
       DIVCLK			=> rx_bufio2_x1,                -- Output Divided Clock
       SERDESSTROBE		=> rx_serdesstrobe) ;           -- Output SERDES strobe (Clock Enable)
@@ -158,7 +144,7 @@ bufio2_inst : BUFIO2 generic map(
       DIVIDE_BYPASS		=> FALSE,               	--
       USE_DOUBLER		=> FALSE)               	--
 port map (
-      I				=> clkdly_s_in,               	-- N_clk input from IDELAY
+      I				=> ddly_s,               	-- N_clk input from IDELAY
       IOCLK			=> rxioclkn,        		-- Output Clock
       DIVCLK			=> open,                	-- Output Divided Clock
       SERDESSTROBE		=> open) ;           		-- Output SERDES strobe (Clock Enable)

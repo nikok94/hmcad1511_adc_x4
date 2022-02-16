@@ -55,6 +55,9 @@ entity hmcad_adc_block is
       dx_b_p                    : in std_logic_vector(3 downto 0);
       dx_b_n                    : in std_logic_vector(3 downto 0);
       
+      mark_delay                : in std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
+      mark_length               : in std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
+      
       trigger_enable            : in std_logic;
       trigger_condition         : in std_logic_vector(1 downto 0);
       trigger_level             : in std_logic_vector(7 downto 0);
@@ -68,21 +71,7 @@ entity hmcad_adc_block is
       enable                    : in std_logic;
       gclk                      : in std_logic;
       gclk_out                  : out std_logic;
-      clk_out                   : out std_logic;
-      clkrxioclkp_out           : out std_logic;
-      clkrxioclkn_out           : out std_logic;
-      clkrx_serdesstrobe_out    : out std_logic;
-      
-      clkrxioclkp_in            : in std_logic;
-      clkrxioclkn_in            : in std_logic;
-      clkrx_serdesstrobe_in     : in std_logic;
-      
-      clkdly_m_out              : out std_logic;
-      clkdly_s_out              : out std_logic;
-      
-      clkdly_m_in               : in std_logic;
-      clkdly_s_in               : in std_logic;
-      
+
       calib_done                : out std_logic;
       tick_ms                   : out std_logic;
 
@@ -118,20 +107,14 @@ architecture Behavioral of hmcad_adc_block is
   signal recorder_rst_sync              : std_logic;
   signal recorder_rdy_sync              : std_logic;
   signal trigger_capture_rst            : std_logic;
-  signal d0_trigger_condition           : std_logic_vector(1 downto 0);
-  signal d0_trigger_level               : std_logic_vector(7 downto 0);
-  signal d0_trigger_mode                : std_logic_vector(1 downto 0);
   signal d0_trigger_set                 : std_logic;
-  signal d1_trigger_condition           : std_logic_vector(1 downto 0);
-  signal d1_trigger_level               : std_logic_vector(7 downto 0);
-  signal d1_trigger_mode                : std_logic_vector(1 downto 0);
   signal d1_trigger_set                 : std_logic;
   signal d2_trigger_set                 : std_logic;
   signal set                            : std_logic;
   signal trigger_in_dvec                : std_logic_vector(3 downto 0);
   signal recorder_start                 : std_logic;
-  signal offset                         : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
-  signal offset_d                       : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
+--  signal offset                         : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
+--  signal offset_d                       : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
   signal trigger_rst                    : std_logic;
   signal deser_rst                      : std_logic;
   signal bs_counter                     : std_logic_vector(4 downto 0);
@@ -178,23 +161,11 @@ trigger_sync_process :
   process(gclk)
   begin
     if rising_edge(gclk) then
-      offset <= recorder_offset;
-      offset_d <= offset;
-
-      d0_trigger_condition <= trigger_condition;
-      d0_trigger_level     <= trigger_level    ;
-      d0_trigger_mode      <= trigger_mode     ;
       d0_trigger_set       <= trigger_set      ;
-
-      d1_trigger_condition <= d0_trigger_condition;
-      d1_trigger_level     <= d0_trigger_level    ;
-      d1_trigger_mode      <= d0_trigger_mode     ;
       d1_trigger_set       <= d0_trigger_set      ;
-      
       d2_trigger_set <= d1_trigger_set;
       
       set <= (d2_trigger_set) and (not d1_trigger_set);
-
     end if;
   end process;
 
@@ -210,10 +181,10 @@ trigger_capture_inst : entity trigger_capture
     clk               => gclk,
     rst               => trigger_rst, 
 
-    capture_mode      => d1_trigger_mode,
-    front_condition   => d1_trigger_condition,
+    capture_mode      => trigger_mode,
+    front_condition   => trigger_condition,
 
-    capture_level     => d1_trigger_level,
+    capture_level     => trigger_level,
 
     trigger_set_up    => set,
     data              => data,
@@ -292,22 +263,9 @@ serdes_1_to_n_clk_ddr_s8_diff_inst : entity serdes_1_to_n_clk_ddr_s8_diff
     rxioclkp        => deser_clkrxioclkp,
     rxioclkn        => deser_clkrxioclkn,
     rx_serdesstrobe => deser_clkrx_serdesstrobe,
-    
-    clkdly_m_out    => clkdly_m_out,
-    clkdly_s_out    => clkdly_s_out,
-    
-    clkdly_m_in     => clkdly_m_in,
-    clkdly_s_in     => clkdly_s_in,
-    
-    rx_x1           => clk_out,
-    
     rx_bufg_x1      => gclk_bufg
   );
 gclk_out <= gclk_bufg;
-
-clkrxioclkp_out        <= deser_clkrxioclkp;
-clkrxioclkn_out        <= deser_clkrxioclkn;
-clkrx_serdesstrobe_out <= deser_clkrx_serdesstrobe;
 
 datain_p <= fclk_p & dx_a_p(0) & dx_b_p(0) & dx_a_p(1) & dx_b_p(1) & dx_a_p(2) & dx_b_p(2) & dx_a_p(3) & dx_b_p(3);
 datain_n <= fclk_n & dx_a_n(0) & dx_b_n(0) & dx_a_n(1) & dx_b_n(1) & dx_a_n(2) & dx_b_n(2) & dx_a_n(3) & dx_b_n(3);
@@ -322,9 +280,9 @@ serdes_1_to_n_data_ddr_s8_diff_inst : entity serdes_1_to_n_data_ddr_s8_diff
     use_phase_detector    => '1',
     datain_p              => datain_p,
     datain_n              => datain_n,
-    rxioclkp              => clkrxioclkp_in,
-    rxioclkn              => clkrxioclkn_in,
-    rxserdesstrobe        => clkrx_serdesstrobe_in,
+    rxioclkp              => deser_clkrxioclkp,
+    rxioclkn              => deser_clkrxioclkn,
+    rxserdesstrobe        => deser_clkrx_serdesstrobe,
     reset                 => deser_rst,
     gclk                  => gclk,
     bitslip               => deser_bitslip,
@@ -373,10 +331,13 @@ data_recorder_inst : entity data_recorder
   Port map( 
     rst                       => recorder_rst_all,
     clk                       => gclk,
+    
+    mark_delay                => mark_delay ,
+    mark_length               => mark_length,
 
     start                     => recorder_start,
     num_data                  => num_data,
-    start_offset              => offset_d,
+    start_offset              => recorder_offset,
 
     s_data                    => data,
     s_valid                   => data_valid,
