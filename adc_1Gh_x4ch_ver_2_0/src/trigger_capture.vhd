@@ -62,11 +62,13 @@ architecture Behavioral of trigger_capture is
     signal level_down_vect  : std_logic_vector(c_data_width/8 - 1 downto 0);
     signal data_to_compare  : std_logic_vector(c_data_width + 7 downto 0);
     signal old_data_byte    : std_logic_vector(7 downto 0);
-    type state_machine      is (idle, start_ready, level_up_state, level_down_state, ext_trig_state, trigger_start_state);
+    type state_machine      is (idle, start_ready, level_up_state, level_down_state, ext_trig_state, trigger_start_state, trigger_restart_state, trigger_auto_state, double_state);
     signal state, next_state: state_machine;
     signal vector_o         : std_logic_vector(c_data_width/8 - 1 downto 0);
     signal start            : std_logic;
-    signal counter          : std_logic_vector(3 downto 0);
+    signal counter          : std_logic_vector(7 downto 0);
+    signal double           : std_logic;
+    signal next_double      : std_logic;
 
 begin
 
@@ -96,43 +98,59 @@ process(clk, rst)
 begin
   if (rst = '1') then
     state <= idle;
+    double <='0';
   elsif rising_edge(clk) then
     state <= next_state;
     trigger_start <= start;
-    if (state = trigger_start_state) then
+    if ((state = trigger_start_state) or (state = trigger_auto_state )) then
       counter <= counter + 1;
     else
       counter <= (others => '0');
     end if;
+    double <= next_double;
   end if;
 end process;
 
 next_state_process:
-process(state, trigger_set_up, capture_mode, level_up_vect, ext_trig, front_condition, counter)
+process(state, trigger_set_up, capture_mode, level_up_vect, ext_trig, front_condition, counter, double)
 begin
   next_state <= state;
   start <= '0';
     case state is
       when idle =>
         next_state <= start_ready;
+        next_double <= '0';
       when start_ready =>
         if (trigger_set_up = '1') then
-          case capture_mode is 
-            when "10" => 
-              next_state <= trigger_start_state;
-            when "01" =>
-              if (front_condition(0) = '1') then
-                next_state <= level_down_state;
-              elsif (front_condition(1) = '1') then
-                next_state <= level_up_state;
-              else
-                next_state <= idle;
-              end if;
-            when "11" => 
-              next_state <= ext_trig_state;
-            when others => 
+          next_state <= trigger_start_state;
+        end if;
+      when trigger_restart_state =>
+        next_double <= '1';
+        case capture_mode is 
+          when "10" => 
+            next_state <= trigger_auto_state;
+          when "01" =>
+            if (front_condition(0) = '1') then
+              next_state <= level_down_state;
+            elsif (front_condition(1) = '1') then
+              next_state <= level_up_state;
+            else
               next_state <= idle;
-          end case;
+            end if;
+          when "11" => 
+            next_state <= ext_trig_state;
+          when others => 
+            next_state <= idle;
+        end case;
+      when double_state =>
+        if (double = '1') then
+          next_state <= idle;
+        else
+          next_state <= trigger_restart_state;
+        end if;
+      when trigger_auto_state => 
+        if (counter = x"80") then
+          next_state <= trigger_start_state;
         end if;
       when level_up_state =>
         if (level_up_vect /= 0) then
@@ -148,8 +166,8 @@ begin
         end if;
       when trigger_start_state => 
         start <= '1';
-          if (counter(counter'length - 1) = '1') then
-            next_state <= idle;
+          if (counter = x"08") then
+            next_state <= double_state;
           end if;
       when others => 
         next_state <= idle;
