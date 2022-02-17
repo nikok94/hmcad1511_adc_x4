@@ -51,6 +51,8 @@ signal	iob_data_in_n 		: std_logic;		--
 signal	rx_clk_in_p 		: std_logic;		--
 signal	rx_clk_in_n 		: std_logic;		--
 signal	rx_bufio2_x1 		: std_logic;		--
+--  signal div_clk          : std_logic;
+--  signal clkin_ibufg        : std_logic;
 
 
 constant RX_SWAP_CLK  		: std_logic := '0' ;			-- pinswap mask for input clock (0 = no swap (default), 1 = swap). Allows input to be connected the wrong way round to ease PCB routing.
