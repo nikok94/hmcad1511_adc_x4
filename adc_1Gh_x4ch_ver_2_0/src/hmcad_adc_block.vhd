@@ -150,10 +150,12 @@ recorder_irq_proc :
   begin
     if (recorder_rst_all = '1') then
       recorder_interrupt <= '0';
+      trigger_rst <= '1';
     elsif rising_edge(gclk) then
       if (rec_valid = '1') then
         recorder_interrupt <= '1';
       end if;
+      trigger_rst <= not trigger_enable;
     end if;
   end process;
 
@@ -171,7 +173,7 @@ trigger_sync_process :
 
 trigger_capture_rst <= areset or (not enable);
 
-trigger_rst <= (not trigger_enable) or areset;
+
 
 trigger_capture_inst : entity trigger_capture
   generic map(
@@ -313,6 +315,7 @@ sync_process : process(areset, gclk)
 begin
   if (areset = '1') then
     trigger_in_dvec <= (others => '0');
+    recorder_start <= '0';
   elsif rising_edge(gclk) then
     trigger_in_dvec(0) <= trigger_in;
     trigger_in_dvec(trigger_in_dvec'length - 1 downto 1) <= trigger_in_dvec(trigger_in_dvec'length - 2 downto 0);

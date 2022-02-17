@@ -127,8 +127,8 @@ architecture Behavioral of hmcad_x4_top is
                                             SPIRegistersStrucrure'pos(TriggerPositionSetUp) => x"0800",
                                             SPIRegistersStrucrure'pos(ControlReg) => x"0000",
                                             SPIRegistersStrucrure'pos(PulseOffset) => x"0040",
-                                            SPIRegistersStrucrure'pos(MarkOffset) => x"0013",
-                                            SPIRegistersStrucrure'pos(MarkLength) => x"0003",
+                                            SPIRegistersStrucrure'pos(MarkOffset) => x"0009",
+                                            SPIRegistersStrucrure'pos(MarkLength) => x"0004",
                                             others => (others => '0')
                                             );
 
@@ -390,6 +390,7 @@ spi_write_process :
       m_fcb_wrack <= '0';
       m_fcb_rdack <= '0';
       trigger_start <= '0';
+      trigger_mode <= (others => '0');
     elsif rising_edge(clk_125MHz) then
        m_fcb_wrreq_d <= m_fcb_wrreq;
       if ((m_fcb_wrreq = '1') and (m_fcb_wrreq_d = '0'))then

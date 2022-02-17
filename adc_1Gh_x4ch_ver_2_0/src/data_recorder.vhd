@@ -39,14 +39,14 @@ entity data_recorder is
 end data_recorder;
 
 architecture Behavioral of data_recorder is
-  signal state                  : std_logic_vector(7 downto 0);
+  signal state                  : std_logic_vector(7 downto 0):= (others => '0');
   constant state_cnt_max        : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0):= (others => '1');
   signal n_count                : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0):= (others => '1');
   signal n_count_max            : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0):= (others => '1');
   signal state_cnt              : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
   signal addr                   : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
-  signal we_a                   : std_logic;
-  signal valid                  : std_logic;
+  signal we_a                   : std_logic:= '0';
+  signal valid                  : std_logic:= '0';
   
   
 
@@ -56,32 +56,35 @@ m_valid <= valid;
 
 process(clk, rst)
 begin
-  if (rst = '0') then
-    state <= (others => '0');
+  if (rst = '1') then
+    state <= x"00";
     we_a <= '0';
     valid <= '0';
+    state_cnt <= (others => '0');
+    compleat <= '0';
   elsif rising_edge(clk) then
     case (state) is
       when x"00" =>
+        state_cnt <= (others => '0');
+        compleat <= '0';
         if (start = '1') then
           state <= x"01";
-          state_cnt <= (others => '0');
           n_count_max <= state_cnt_max - start_offset;
         end if;
-        valid <= '0';
         we_a <= '0';
+        valid <= '0';
       when x"01" =>
         if (state_cnt < mark_delay) then
           state_cnt <= state_cnt + 1;
         else
           state <= x"02";
-          n_count_max <= n_count_max - mark_delay;
+          n_count_max <= n_count_max-c_start_delay;
           state_cnt <= (others => '0');
+          we_a <= '1';
         end if;
       when x"02" =>
-        we_a <= '1';
         state_cnt <= state_cnt + 1;
-        if (state_cnt < mark_length) then
+        if (state_cnt >= mark_length) then
           state <= x"03";
           n_count_max <= n_count_max - mark_length;
         end if;
@@ -147,7 +150,8 @@ begin
         else
           state <= x"09";
         end if;
-      when others => 
+      when others =>
+        compleat <= '1';
     end case;
   end if;
 end process;

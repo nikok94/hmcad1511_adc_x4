@@ -62,7 +62,7 @@ architecture Behavioral of trigger_capture is
     signal level_down_vect  : std_logic_vector(c_data_width/8 - 1 downto 0);
     signal data_to_compare  : std_logic_vector(c_data_width + 7 downto 0);
     signal old_data_byte    : std_logic_vector(7 downto 0);
-    type state_machine      is (idle, start_ready, level_up_state, level_down_state, ext_trig_state, trigger_start_state, trigger_restart_state, trigger_auto_state, double_state);
+    type state_machine      is (idle, start_ready, level_up_state, level_down_state, ext_trig_state, trigger_start_state, trigger_wait_state, trigger_restart_state, double_state);
     signal state, next_state: state_machine;
     signal vector_o         : std_logic_vector(c_data_width/8 - 1 downto 0);
     signal start            : std_logic;
@@ -99,10 +99,12 @@ begin
   if (rst = '1') then
     state <= idle;
     double <='0';
+    trigger_start <= '0';
+    counter <= (others => '0');
   elsif rising_edge(clk) then
     state <= next_state;
     trigger_start <= start;
-    if ((state = trigger_start_state) or (state = trigger_auto_state )) then
+    if ((state = trigger_start_state) or (state = trigger_wait_state)) then
       counter <= counter + 1;
     else
       counter <= (others => '0');
@@ -128,7 +130,7 @@ begin
         next_double <= '1';
         case capture_mode is 
           when "10" => 
-            next_state <= trigger_auto_state;
+            next_state <= trigger_start_state;
           when "01" =>
             if (front_condition(0) = '1') then
               next_state <= level_down_state;
@@ -146,11 +148,11 @@ begin
         if (double = '1') then
           next_state <= idle;
         else
-          next_state <= trigger_restart_state;
+          next_state <= trigger_wait_state;
         end if;
-      when trigger_auto_state => 
-        if (counter = x"80") then
-          next_state <= trigger_start_state;
+      when trigger_wait_state => 
+        if (counter = x"1e") then
+          next_state <= trigger_restart_state;
         end if;
       when level_up_state =>
         if (level_up_vect /= 0) then
@@ -166,9 +168,9 @@ begin
         end if;
       when trigger_start_state => 
         start <= '1';
-          if (counter = x"08") then
-            next_state <= double_state;
-          end if;
+        if (counter = x"08") then
+          next_state <= double_state;
+        end if;
       when others => 
         next_state <= idle;
     end case;
