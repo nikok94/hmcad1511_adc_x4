@@ -435,7 +435,7 @@ pulse_proc :
     elsif rising_edge(clk_125MHz) then
       if (start_pulse = '1') then
         pulse_cnt <= (others => '0');
-      elsif (pulse_cnt /= x"ff") then
+      elsif (pulse_cnt /= x"1E") then
         pulse_cnt <= pulse_cnt + 1;
       end if;
       

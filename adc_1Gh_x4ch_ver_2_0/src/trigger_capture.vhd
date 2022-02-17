@@ -151,7 +151,7 @@ begin
           next_state <= trigger_wait_state;
         end if;
       when trigger_wait_state => 
-        if (counter = x"1e") then
+        if (counter = x"0F") then
           next_state <= trigger_restart_state;
         end if;
       when level_up_state =>
@@ -193,12 +193,8 @@ level_up_compare_proc:
   process(clk)
   begin
     if rising_edge(clk) then
-      if (data_to_compare(8*(i - 1) + 7 downto 8*(i - 1)) >= capture_level) then
-        if (data_to_compare(8*i + 7 downto 8*i) < capture_level) then
-          level_up_vect(i - 1) <= '1';
-        else
-          level_up_vect(i - 1) <= '0';
-        end if;
+      if ((data_to_compare(8*(i - 1) + 7 downto 8*(i - 1)) >= capture_level) and (data_to_compare(8*i + 7 downto 8*i) < data_to_compare(8*(i - 1) + 7 downto 8*(i - 1))))then
+        level_up_vect(i - 1) <= '1';
       else
         level_up_vect(i - 1) <= '0';
       end if;
@@ -209,12 +205,8 @@ level_down_compare_proc:
   process(clk)
   begin
     if rising_edge(clk) then
-      if (data_to_compare(8*(i - 1) + 7 downto 8*(i - 1)) <= capture_level) then
-        if (data_to_compare(8*i + 7 downto 8*i) > capture_level) then
+      if ((data_to_compare(8*(i - 1) + 7 downto 8*(i - 1)) <= capture_level) and (data_to_compare(8*i + 7 downto 8*i) > data_to_compare(8*(i - 1) + 7 downto 8*(i - 1))))then
           level_down_vect(i - 1) <= '1';
-        else
-          level_down_vect(i - 1) <= '0';
-        end if;
       else
         level_down_vect(i - 1) <= '0';
       end if;
