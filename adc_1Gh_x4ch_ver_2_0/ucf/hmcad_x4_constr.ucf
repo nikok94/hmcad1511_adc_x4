@@ -103,7 +103,7 @@ NET "adc0_lclk_n" LOC = J12;
 NET "adc0_lclk_n" IOSTANDARD = LVDS_25;
 NET "adc0_lclk_n" DIFF_TERM = "TRUE";
 
-NET "hmcad_x4_block_inst/adc_block_gen[0].adc0_inst/gclk_out" TNM_NET = "lck0_div8";
+NET "hmcad_x4_block_inst/adc_block_gen[0].adc0_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/rx_bufg_x1" TNM_NET = "lck0_div8";
 TIMESPEC TS_lck0_div8 = PERIOD "lck0_div8" 8 ns HIGH 50 %;
 
 NET "adc0_fclk_p" LOC = J13;
@@ -178,7 +178,8 @@ NET "adc1_lclk_p" DIFF_TERM = "TRUE";
 NET "adc1_lclk_n" LOC = J16;
 NET "adc1_lclk_n" IOSTANDARD = LVDS_25;
 NET "adc1_lclk_n" DIFF_TERM = "TRUE";
-NET "hmcad_x4_block_inst/adc_block_gen[1].adc0_inst/gclk_out" TNM_NET = "lck1_div8";
+
+NET "hmcad_x4_block_inst/adc_block_gen[1].adc0_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/rx_bufg_x1" TNM_NET = "lck1_div8";
 TIMESPEC TS_lck1_div8 = PERIOD "lck1_div8" 8 ns HIGH 50 %;
 
 NET "adc1_fclk_p" LOC = K12;
@@ -254,7 +255,7 @@ NET "adc2_lclk_n" LOC = J4;
 NET "adc2_lclk_n" IOSTANDARD = LVDS_25;
 NET "adc2_lclk_n" DIFF_TERM = "TRUE";
 
-NET "hmcad_x4_block_inst/adc_block_gen[2].adc0_inst/gclk_out" TNM_NET = "lck2_div8";
+NET "hmcad_x4_block_inst/adc_block_gen[2].adc0_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/rx_bufg_x1" TNM_NET = "lck2_div8";
 TIMESPEC TS_lck2_div8 = PERIOD "lck2_div8" 8 ns HIGH 50 %;
 
 NET "adc2_fclk_p" LOC = F2;
@@ -330,7 +331,7 @@ NET "adc3_lclk_n" LOC = H3;
 NET "adc3_lclk_n" IOSTANDARD = LVDS_25;
 NET "adc3_lclk_n" DIFF_TERM = "TRUE";
 
-NET "hmcad_x4_block_inst/adc_block_gen[3].adc0_inst/gclk_out" TNM_NET = "lck3_div8";
+NET "hmcad_x4_block_inst/adc_block_gen[3].adc0_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/rx_bufg_x1" TNM_NET = "lck3_div8";
 TIMESPEC TS_lck3_div8 = PERIOD "lck3_div8" 8 ns HIGH 50 %;
 
 NET "adc3_fclk_p" LOC = J6;
@@ -440,20 +441,7 @@ NET "in_clk_20MHz" LOC = M9;
 NET "pulse_n" LOC = C8;
 NET "pulse_p" LOC = D8;
 
-NET "controls_out[0]" LOC = T8;
-NET "controls_out[1]" LOC = T7;
-NET "controls_out[2]" LOC = T6;
-NET "controls_out[3]" LOC = T5;
-NET "controls_out[4]" LOC = T15;
-
-
 NET "spifi_sck" CLOCK_DEDICATED_ROUTE = FALSE;
-#PIN "spifi_sck_bufg_BUFG.O" CLOCK_DEDICATED_ROUTE = FALSE;
-#NET "spifi_cs" CLOCK_DEDICATED_ROUTE = FALSE;
-#NET "fpga_sck" CLOCK_DEDICATED_ROUTE = FALSE;
+PIN "spifi_sck_bufg_BUFG.O" CLOCK_DEDICATED_ROUTE = FALSE;
 
-
-#INST "hmcad_x4_block_inst/adc_block_gen[0].adcx_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/bufio2_inst" LOC = BUFIO2_X4Y21;
-#INST "hmcad_x4_block_inst/adc_block_gen[1].adcx_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/bufio2_inst" LOC = BUFIO2_X3Y11;
-#INST "hmcad_x4_block_inst/adc_block_gen[3].adcx_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/bufio2_inst" LOC = BUFIO2_X0Y23;
-#INST "hmcad_x4_block_inst/adc_block_gen[2].adcx_inst/serdes_1_to_n_clk_ddr_s8_diff_inst/bufio2_inst" LOC = BUFIO2_X1Y15;
+NET "led" LOC = T8;
