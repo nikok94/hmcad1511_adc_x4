@@ -28,7 +28,7 @@ add_files -norecurse ../src/SPI/spi_data_receiver.vhd
 #add_files -norecurse ../src/SPI/spi_data_transceiver.vhd
 #add_files -norecurse ../src/SPIFI/spifi_module.vhd
 add_files -norecurse ../src/QSPI_interconnect.vhd
-add_files -norecurse ../src/defPulse.vhd
+#add_files -norecurse ../src/defPulse.vhd
 add_files -norecurse ../src/hmcad_x4_block.vhd
 add_files -norecurse ../src/data_recorder.vhd
 add_files -norecurse ../src/trigger_capture.vhd
