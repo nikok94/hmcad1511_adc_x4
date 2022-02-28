@@ -38,7 +38,7 @@ use work.clock_generator;
 use work.spi_adc_250x4_master;
 use work.hmcad_x4_block;
 use work.QSPI_interconnect;
---use work.defPulse;
+use work.defPulse;
 
 
 entity hmcad_x4_top is
@@ -176,18 +176,18 @@ architecture Behavioral of hmcad_x4_top is
     signal hmcad_x4_block_rst           : std_logic;
     signal trigger_mode                 : std_logic_vector(1 downto 0);
     signal trigger_start                : std_logic;
-    signal trigger_start_d              : std_logic;
-    signal trigger_start_up             : std_logic;
     signal trigger_start_counter        : integer;
+    signal trigger_start_delay          : std_logic_vector(3 downto 0);
     
     signal state_out                    : integer;
     signal pulse                        : std_logic;
-    signal pulse_d                      : std_logic;
-    signal pulse_up                     : std_logic;
---    signal pulse_cnt                    : std_logic_vector(7 downto 0);
+    signal pulse_cnt                    : std_logic_vector(7 downto 0);
     signal start_pulse                  : std_logic;
     signal pulse_out                    : std_logic;
-
+    signal pulse_out_d                  : std_logic;
+    signal pulse_out_res                : std_logic;
+    
+    
     constant calid_done_delay           : integer := 10000000;
     signal trigger_start_out            : std_logic;
     signal spifi_sck_bufg               : std_logic;
@@ -391,11 +391,14 @@ spi_write_process :
       m_fcb_rdack <= '0';
       trigger_start <= '0';
       trigger_mode <= (others => '0');
-      trigger_start_counter <= 0;
-      start_pulse <= '0';
     elsif rising_edge(clk_125MHz) then
        m_fcb_wrreq_d <= m_fcb_wrreq;
       if ((m_fcb_wrreq = '1') and (m_fcb_wrreq_d = '0'))then
+        if ((conv_integer(m_fcb_addr) = SPIRegistersStrucrure'pos(ControlReg)) and m_fcb_wrdata(ControlRegType'pos(mode_1) downto ControlRegType'pos(mode_0)) /= "00") then
+          trigger_start <= '1';
+          trigger_mode <= m_fcb_wrdata(ControlRegType'pos(mode_1) downto ControlRegType'pos(mode_0));
+          trigger_start_counter <= 0;
+        end if;
         m_fcb_wrack <= '1';
         SPIRegisters(conv_integer(m_fcb_addr)) <= m_fcb_wrdata;
       elsif (m_fcb_rdreq = '1') then
@@ -404,54 +407,47 @@ spi_write_process :
       else
         m_fcb_wrack <= '0';
         m_fcb_rdack <= '0';
-        if (m_fcb_wrack = '1') then
-          SPIRegisters(SPIRegistersStrucrure'pos(ControlReg)) <= (others => '0');
-        end if;
-      end if;
-      spi_rst_cmd <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(program_rst));
-      hmcad_buffer_rst <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(buffer_rst));
-      SPIRegisters(SPIRegistersStrucrure'pos(BufferLength)) <= conv_std_logic_vector(c_max_num_data, 16);
-      start_pulse <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(pulse_start));
-      if (SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(mode_1) downto ControlRegType'pos(mode_0)) /= "00") then
-        trigger_start <= '1';
-        trigger_mode <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(mode_1) downto ControlRegType'pos(mode_0));
-        trigger_start_counter <= 0;
-      else
+        SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(StructureLength) - 1 downto 0) <= (others => '0');
+        trigger_start_delay(0) <= '0';
         if (trigger_start = '1') and (trigger_start_counter < 3) then
           trigger_start_counter <= trigger_start_counter + 1;
         else
           trigger_start <= '0';
         end if;
       end if;
+      spi_rst_cmd <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(program_rst));
+      hmcad_buffer_rst <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(buffer_rst));
+      SPIRegisters(SPIRegistersStrucrure'pos(BufferLength)) <= conv_std_logic_vector(c_max_num_data, 16);
 --      SPIRegisters(SPIRegistersStrucrure'pos(HMCADCounter)) <= hmcad_rst_counter;
+      start_pulse <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(pulse_start));
     end if;
   end process;
 
-  pulse_out <= pulse_up or trigger_start_up;
 
-trigger_start_proc : 
-  process(clk_125MHz, rst)
-  begin
-    if (rst = '1') then
-      trigger_start_d <= '0';
-      trigger_start_up <= '0';
-    elsif rising_edge(clk_125MHz) then
-      trigger_start_d <= trigger_start;
-      trigger_start_up <= (not trigger_start_d) and trigger_start;
-    end if;
-  end process;
 
 pulse_proc :
   process(clk_125MHz, rst)
   begin
     if (rst = '1') then
+      pulse_cnt <= x"ff";
       pulse <= '0';
-      pulse_up <= '0';
-      pulse_d <= '0';
+      pulse_out <= '0';
     elsif rising_edge(clk_125MHz) then
-      pulse <= start_pulse;
-      pulse_d <= pulse;
-      pulse_up <= (not pulse_d) and pulse;
+      if (start_pulse = '1') then
+        pulse_cnt <= (others => '0');
+      elsif (pulse_cnt /= x"1E") then
+        pulse_cnt <= pulse_cnt + 1;
+      end if;
+      
+      if (pulse_cnt = SPIRegisters(SPIRegistersStrucrure'pos(MarkOffset))(7 downto 0)) then
+        pulse <= '1';
+      else
+        pulse <= '0';
+      end if;
+      
+      pulse_out <= pulse or trigger_start;
+      pulse_out_d <= pulse_out;
+      pulse_out_res <= (not pulse_out_d) and pulse_out;
     end if;
   end process;
 
@@ -496,21 +492,20 @@ pulse_proc :
 --pulse_p <= not pulse;
 --pulse_n <= pulse;
 
-pulse_p <= not pulse_out when SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(6) = '0' else pulse_out;
-pulse_n <= pulse_out when SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(6) = '0' else not pulse_out;
 
---pulse_out_proc : process(clk_125MHz)
---begin
---  if rising_edge(clk_125MHz) then
---    --if (SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(6) = '1') then
---    --  pulse_p <= pulse_out_res;-- or adcxTriggerRes(2) ;
---    --  pulse_n <= not pulse_out_res;--adcxTriggerRes_n(2);--not (pulse_out or adcxTriggerRes(2));
---    --else
---      pulse_n <= pulse_out_res;-- or adcxTriggerRes(2) ;
---      pulse_p <= not pulse_out_res;--adcxTriggerRes_n(2);--not (pulse_out or adcxTriggerRes(2));
---    --end if;
---  end if;
---end process;
+
+pulse_out_proc : process(clk_125MHz)
+begin
+  if rising_edge(clk_125MHz) then
+    if (SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(6) = '1') then
+      pulse_p <= pulse_out_res;-- or adcxTriggerRes(2) ;
+      pulse_n <= not pulse_out_res;--adcxTriggerRes_n(2);--not (pulse_out or adcxTriggerRes(2));
+    else
+      pulse_n <= pulse_out_res;-- or adcxTriggerRes(2) ;
+      pulse_p <= not pulse_out_res;--adcxTriggerRes_n(2);--not (pulse_out or adcxTriggerRes(2));
+    end if;
+  end if;
+end process;
 
 
 
@@ -581,6 +576,31 @@ hmcad_x4_block_inst : entity hmcad_x4_block
     adcx_tick_ms            => adcx_tick_ms 
 
   );
+
+--defPulse0_inst_gen : for i in 0 to hmcad_x_clk'length-1 generate
+--
+--  defPulse0_inst : entity defPulse
+--    Port map( 
+--      clk            => hmcad_x_clk(i),
+--      rst            => hmcad_x4_block_rst,
+--      delay          => SPIRegisters(SPIRegistersStrucrure'pos(PulseOffset)),
+--      s_in           => adcxTrigger,
+--      s_out_p        => adcxTriggerDef_p(i),
+--      s_out_n        => adcxTriggerDef_n(i)
+--    );
+--end generate;
+
+--adcxTriggerRes_p(0) <= adcxTriggerDef_p(0) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(0) = '1') else adcxTriggerDef_p(1);
+--adcxTriggerRes_p(1) <= adcxTriggerDef_p(2) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(2) = '1') else adcxTriggerDef_p(3);
+--adcxTriggerRes_p(2) <= adcxTriggerRes_p(1) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(1 downto 0) = "00") else adcxTriggerRes_p(0);
+--
+--adcxTriggerRes_n(0) <= adcxTriggerDef_n(0) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(0) = '1') else adcxTriggerDef_n(1);
+--adcxTriggerRes_n(1) <= adcxTriggerDef_n(2) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(2) = '1') else adcxTriggerDef_n(3);
+--adcxTriggerRes_n(2) <= adcxTriggerRes_n(1) when (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(1 downto 0) = "00") else adcxTriggerRes_n(0);
+--
+----adcxTriggerRes_p(2) <= adcxTriggerDef_p(3) or adcxTriggerDef_p(2) or adcxTriggerDef_p(1) or adcxTriggerDef_p(0);
+----adcxTriggerRes_n(2) <= adcxTriggerDef_n(3) or adcxTriggerDef_n(2) or adcxTriggerDef_n(1) or adcxTriggerDef_n(0);
+
 
 int_adcx <= hmcad_x_int;
 qspi_x_clk <= hmcad_x_clk;

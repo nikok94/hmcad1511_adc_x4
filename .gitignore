@@ -6,6 +6,7 @@
 !/**/edk/axi_subdesign.mhs
 /**/prj/*
 /**/prg/*
+!/**/prg/*.mcs
 
 /**/src/blk_mem_gen_v7_3_0/*
 !/**/src/blk_mem_gen_v7_3_0/mem_64_4096.xci
