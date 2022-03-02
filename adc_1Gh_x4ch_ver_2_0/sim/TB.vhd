@@ -127,7 +127,7 @@ architecture Behavioral of TB is
                                             SPIRegStr'pos(TriggerSetUp) => x"7F10",
                                             SPIRegStr'pos(ADCEnableReg) => x"000F",
                                             SPIRegStr'pos(TriggerPositionSetUp) => x"0800",
-                                            SPIRegStr'pos(ControlReg) => x"0004",
+                                            SPIRegStr'pos(ControlReg) => x"0002",
                                             SPIRegStr'pos(PulseOffset) => x"0000",
                                             SPIRegStr'pos(BufferLength) => x"0000",
                                             SPIRegStr'pos(MarkDelay) => x"0000",
