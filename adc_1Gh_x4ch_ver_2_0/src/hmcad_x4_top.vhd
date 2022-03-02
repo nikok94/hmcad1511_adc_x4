@@ -182,10 +182,10 @@ architecture Behavioral of hmcad_x4_top is
     signal state_out                    : integer;
     signal pulse                        : std_logic;
     signal pulse_cnt                    : std_logic_vector(7 downto 0);
-    signal start_pulse                  : std_logic;
-    signal pulse_out                    : std_logic;
-    signal pulse_out_d                  : std_logic;
-    signal pulse_out_res                : std_logic;
+    signal start_pulse                  : std_logic:='0';
+    signal pulse_out                    : std_logic:='0';
+    signal pulse_out_d                  : std_logic:='0';
+    signal pulse_out_res                : std_logic:='0';
     
     
     constant calid_done_delay           : integer := 10000000;
@@ -391,6 +391,7 @@ spi_write_process :
       m_fcb_rdack <= '0';
       trigger_start <= '0';
       trigger_mode <= (others => '0');
+      start_pulse <= '0';
     elsif rising_edge(clk_125MHz) then
        m_fcb_wrreq_d <= m_fcb_wrreq;
       if ((m_fcb_wrreq = '1') and (m_fcb_wrreq_d = '0'))then
@@ -435,11 +436,13 @@ pulse_proc :
     elsif rising_edge(clk_125MHz) then
       if (start_pulse = '1') then
         pulse_cnt <= (others => '0');
-      elsif (pulse_cnt /= x"1E") then
-        pulse_cnt <= pulse_cnt + 1;
+      else
+        if (pulse_cnt < x"ff") then
+          pulse_cnt <= pulse_cnt + 1;
+        end if;
       end if;
       
-      if (pulse_cnt = SPIRegisters(SPIRegistersStrucrure'pos(MarkOffset))(7 downto 0)) then
+      if (pulse_cnt = x"1E") then
         pulse <= '1';
       else
         pulse <= '0';
