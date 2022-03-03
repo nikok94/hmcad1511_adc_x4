@@ -232,6 +232,12 @@ architecture Behavioral of hmcad_x4_top is
 --    signal adcxTriggerDef_n             : std_logic_vector(3 downto 0);
 --    signal adcxTriggerRes_p             : std_logic_vector(2 downto 0);
 --    signal adcxTriggerRes_n             : std_logic_vector(2 downto 0);
+    signal repeat_vec                   : std_logic_vector(2 downto 0);
+    signal repeat_start                 : std_logic:='0';
+    signal repeat_rst                   : std_logic:='0';
+    signal rep_state                    : std_logic_vector(7 downto 0);
+    signal rep_cnt                      : std_logic_vector(7 downto 0);
+    signal hmcad_x4_block_start         : std_logic;
 begin
 
 rst <= infrst_rst_out;
@@ -323,7 +329,45 @@ begin
   end if;
 end process;
 
-dd(dd'length - 1 downto 2) <= (others => 'Z');
+rep_state_proc :
+process(clk_125MHz, rst)
+begin
+  if (rst = '1') then
+    repeat_vec <= (others => '0');
+    repeat_rst <= '0';
+    rep_state <= (others => '0');
+    repeat_start <= '0';
+  elsif rising_edge(clk_125MHz) then
+    repeat_vec(0) <= dd(2);
+    repeat_vec(repeat_vec'length - 1 downto 1) <= repeat_vec(repeat_vec'length - 2 downto 0);
+    case (rep_state) is
+      when x"00" =>
+        if (repeat_vec(repeat_vec'length - 1) = '0' and repeat_vec(repeat_vec'length - 2)='1') then
+          rep_cnt <= (others => '0');
+          rep_state <= x"01";
+          repeat_rst <= '1';
+        else
+          repeat_rst <= '0';
+        end if;
+        repeat_start <= '0';
+      when x"01" =>
+        repeat_rst <= '0';
+        repeat_start <= '1';
+        if (repeat_start = '1') then
+          if (rep_cnt < 3) then
+            rep_cnt <= rep_cnt + 1;
+          else
+            rep_state <= x"00";
+          end if;
+        end if;
+      when others =>
+        rep_state <= x"00";
+    end case;
+  end if;
+end process;
+
+
+dd(dd'length - 1 downto 3) <= (others => 'Z');
 
 sys_rst <= (not xc_sys_rstn);
 
@@ -425,7 +469,8 @@ spi_write_process :
 
 hmcad_buffer_rst <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(buffer_rst)) or 
                     SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(mode_1)) or 
-                    SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(mode_0));
+                    SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(mode_0)) or
+                    repeat_rst;
 
 pulse_proc :
   process(clk_125MHz, rst)
@@ -541,6 +586,8 @@ adcx_dx_b_p <= adc3_dx_b_p & adc2_dx_b_p & adc1_dx_b_p & adc0_dx_b_p;
 adcx_dx_b_n <= adc3_dx_b_n & adc2_dx_b_n & adc1_dx_b_n & adc0_dx_b_n;
 
 
+hmcad_x4_block_start <= repeat_start or trigger_start;
+
 hmcad_x4_block_inst : entity hmcad_x4_block
   Generic map (
     c_max_num_data         => c_max_num_data
@@ -551,7 +598,7 @@ hmcad_x4_block_inst : entity hmcad_x4_block
     ADCEnableReg            => SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg)),
     TriggerPositionSetUp    => SPIRegisters(SPIRegistersStrucrure'pos(TriggerPositionSetUp)),
     mode                    => trigger_mode,
-    start                   => trigger_start,
+    start                   => hmcad_x4_block_start,
     
     mark_delay              => SPIRegisters(SPIRegistersStrucrure'pos(MarkOffset)),
     mark_length             => SPIRegisters(SPIRegistersStrucrure'pos(MarkLength)),
