@@ -417,14 +417,15 @@ spi_write_process :
         end if;
       end if;
       spi_rst_cmd <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(program_rst));
-      hmcad_buffer_rst <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(buffer_rst));
       SPIRegisters(SPIRegistersStrucrure'pos(BufferLength)) <= conv_std_logic_vector(c_max_num_data, 16);
 --      SPIRegisters(SPIRegistersStrucrure'pos(HMCADCounter)) <= hmcad_rst_counter;
       start_pulse <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(pulse_start));
     end if;
   end process;
 
-
+hmcad_buffer_rst <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(buffer_rst)) or 
+                    SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(mode_1)) or 
+                    SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(mode_0));
 
 pulse_proc :
   process(clk_125MHz, rst)

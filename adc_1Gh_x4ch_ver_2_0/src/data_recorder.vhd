@@ -53,7 +53,6 @@ architecture Behavioral of data_recorder is
 begin
 m_valid <= valid;
 
-
 process(clk, rst)
 begin
   if (rst = '1') then
