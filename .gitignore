@@ -23,5 +23,4 @@
 
 /**/tcl/*
 !/**/tcl/build_project.tcl
-
-adc_1Gh_x4ch_ver_1_0/doc/~$исание регистров для платы ADC 1GHzx4.docx
+!/**/tcl/build_win.bat
