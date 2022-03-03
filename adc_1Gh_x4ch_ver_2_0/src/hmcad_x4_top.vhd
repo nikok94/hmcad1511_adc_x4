@@ -38,7 +38,7 @@ use work.clock_generator;
 use work.spi_adc_250x4_master;
 use work.hmcad_x4_block;
 use work.QSPI_interconnect;
-use work.defPulse;
+--use work.defPulse;
 
 
 entity hmcad_x4_top is
