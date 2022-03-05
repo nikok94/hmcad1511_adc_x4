@@ -48,6 +48,7 @@ entity hmcad_x4_block is
     c_data_width            : integer := 64
   );
   Port (
+    clk                     : in std_logic;
     areset                  : in std_logic;
     TriggerSetUp            : in std_logic_vector(15 downto 0);
     ADCEnableReg            : in std_logic_vector(15 downto 0);
@@ -62,64 +63,23 @@ entity hmcad_x4_block is
     adcx_dx_a_n             : in std_logic_vector(4*4 - 1 downto 0);
     adcx_dx_b_p             : in std_logic_vector(4*4 - 1 downto 0);
     adcx_dx_b_n             : in std_logic_vector(4*4 - 1 downto 0);
-    
+
+    sync_pulse              : out std_logic;
     triggerOut              : out std_logic;
     mark_delay              : in std_logic_vector(15 downto 0);
     mark_length             : in std_logic_vector(15 downto 0);
-    
---    adc0_lclk_p             : in std_logic;
---    adc0_lclk_n             : in std_logic;
---    adc0_fclk_p             : in std_logic;
---    adc0_fclk_n             : in std_logic;
---    adc0_dx_a_p             : in std_logic_vector(3 downto 0);
---    adc0_dx_a_n             : in std_logic_vector(3 downto 0);
---    adc0_dx_b_p             : in std_logic_vector(3 downto 0);
---    adc0_dx_b_n             : in std_logic_vector(3 downto 0);
---
---    adc1_lclk_p             : in std_logic;
---    adc1_lclk_n             : in std_logic;
---    adc1_fclk_p             : in std_logic;
---    adc1_fclk_n             : in std_logic;
---    adc1_dx_a_p             : in std_logic_vector(3 downto 0);
---    adc1_dx_a_n             : in std_logic_vector(3 downto 0);
---    adc1_dx_b_p             : in std_logic_vector(3 downto 0);
---    adc1_dx_b_n             : in std_logic_vector(3 downto 0);
---
---    adc2_lclk_p             : in std_logic;
---    adc2_lclk_n             : in std_logic;
---    adc2_fclk_p             : in std_logic;
---    adc2_fclk_n             : in std_logic;
---    adc2_dx_a_p             : in std_logic_vector(3 downto 0);
---    adc2_dx_a_n             : in std_logic_vector(3 downto 0);
---    adc2_dx_b_p             : in std_logic_vector(3 downto 0);
---    adc2_dx_b_n             : in std_logic_vector(3 downto 0);
---
---    adc3_lclk_p             : in std_logic;
---    adc3_lclk_n             : in std_logic;
---    adc3_fclk_p             : in std_logic;
---    adc3_fclk_n             : in std_logic;
---    adc3_dx_a_p             : in std_logic_vector(3 downto 0);
---    adc3_dx_a_n             : in std_logic_vector(3 downto 0);
---    adc3_dx_b_p             : in std_logic_vector(3 downto 0);
---    adc3_dx_b_n             : in std_logic_vector(3 downto 0);
 
     adcx_calib_done         : out std_logic_vector(3 downto 0);
     adcx_interrupt          : out std_logic_vector(3 downto 0);
     adcx_tick_ms            : out std_logic_vector(3 downto 0);
     
+    recorder_rst            : in std_logic;
+
     slave_x_clk             : out std_logic_vector(4 - 1 downto 0);
     slave_x_valid           : out std_logic_vector(4 - 1 downto 0);
     slave_x_ready           : in std_logic_vector(4 - 1 downto 0);
     slave_x_data            : out std_logic_vector(4*c_data_width - 1 downto 0);
-    slave_x_cs_up           : in std_logic_vector(4 - 1 downto 0);
-    
-    recorder_rst            : in std_logic
-    --;
---    
---    
---    spifi_cs                : in std_logic;
---    spifi_sck               : in std_logic;
---    spifi_sio               : inout std_logic_vector(3 downto 0)
+    slave_x_cs_up           : in std_logic_vector(4 - 1 downto 0)
 
     );
 end hmcad_x4_block;
@@ -159,13 +119,13 @@ architecture Behavioral of hmcad_x4_block is
   signal capture_level                  : std_logic_vector(7 downto 0);
   signal start_offset                   : std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
 
-  signal state                          : integer;
-  constant frame_sync_pattern           : std_logic_vector(7 downto 0) := x"0F";
+--  signal state                          : integer;
+--  constant frame_sync_pattern           : std_logic_vector(7 downto 0) := x"0F";
   signal adcx_enable                    : std_logic_vector(3 downto 0) := "1111";
-  signal TriggerSetUp_d                 : std_logic_vector(15 downto 0);
-  signal ADCEnableReg_d                 : std_logic_vector(15 downto 0);
-  signal TriggerPositionSetUp_d         : std_logic_vector(15 downto 0);
-  signal mode_d                         : std_logic_vector(1 downto 0);
+--  signal TriggerSetUp_d                 : std_logic_vector(15 downto 0);
+--  signal ADCEnableReg_d                 : std_logic_vector(15 downto 0);
+--  signal TriggerPositionSetUp_d         : std_logic_vector(15 downto 0);
+--  signal mode_d                         : std_logic_vector(1 downto 0);
   signal trig_position                  : std_logic_vector(15 downto 0);
   signal tick_counter                   : integer;
   signal adcx_calib_status              : std_logic_vector(3 downto 0);
@@ -190,15 +150,63 @@ architecture Behavioral of hmcad_x4_block is
   signal recorder_rst_vec               : std_logic_vector(3 downto 0);
   signal adcxClock                      : std_logic_vector(2 downto 0);
   signal adcx_enableRes                 : std_logic;
-
+  signal state                          : std_logic_vector(7 downto 0);
+  signal state_cnt                      : std_logic_vector(7 downto 0);
+  signal recorders_rst                  : std_logic:='1';
+  signal pulse                          : std_logic:='0';
+  signal adcx_start                     : std_logic;
 
 begin
+
+sync_pulse <= pulse;
+
+state_proc :
+  process(clk, areset)
+  begin
+    if (areset = '1') then
+      recorders_rst <= '1';
+      state <= (others => '0');
+      pulse <= '0';
+      adcx_start <= '0';
+    elsif rising_edge(clk) then
+      case (state) is
+        when x"00" =>
+          adcx_start <= '0';
+          if (start = '1') then
+            pulse <= '1';
+            recorders_rst <= '1';
+            state <= x"01";
+          else
+            pulse <= '0';
+            recorders_rst <= '0';
+          end if;
+        when x"01" =>
+          pulse <= '0';
+          recorders_rst <= '0';
+          state <= x"02";
+          state_cnt <= (others => '0');
+        when x"02" =>
+          adcx_start <= '1';
+          if (state_cnt < 3) then
+            state_cnt <= state_cnt + 1;
+          else
+            state <= x"00";
+          end if;
+        when others =>
+          state <= (others => '0');
+      end case;
+    end if;
+  end process;
+
+
+
+
 trig_position <= TriggerPositionSetUp;
 adcx_enable <= ADCEnableReg(3 downto 0);
 mux_data_selector <= TriggerSetUp(3 downto 2);
 
 adc_block_gen : for i in 0 to recorder_rst_vec'length - 1 generate
-  recorder_rst_vec(i) <= slave_x_cs_up(i) or recorder_rst;
+  recorder_rst_vec(i) <= slave_x_cs_up(i) or recorders_rst or recorder_rst;
   
   adc0_inst : entity hmcad_adc_block
   Generic map(
@@ -209,7 +217,7 @@ adc_block_gen : for i in 0 to recorder_rst_vec'length - 1 generate
     trigger_condition     => TriggerSetUp(5 downto 4),
     trigger_level         => TriggerSetUp(15 downto 8),
     trigger_mode          => mode,
-    trigger_set           => start,
+    trigger_set           => adcx_start,
 
     trigger_out           => trigger_out(i),
     trigger_in            => trigger,
@@ -260,42 +268,6 @@ end process;
 
 trigger <= trigger_out(0) or trigger_out(1) or trigger_out(2) or trigger_out(3);
 triggerOut <= trigger;
-
-
---BUFGMUX_inst1 : BUFGMUX
---generic map (
---   CLK_SEL_TYPE => "SYNC"  -- Glitchles ("SYNC") or fast ("ASYNC") clock switch-over
---)
---port map (
---   O => adcxClock(0),   -- 1-bit output: Clock buffer output
---   I0 => clk_out(1), -- 1-bit input: Clock buffer input (S=0)
---   I1 => clk_out(0), -- 1-bit input: Clock buffer input (S=1)
---   S => adcx_enable(0)
---);
---
---BUFGMUX_inst2 : BUFGMUX
---generic map (
---   CLK_SEL_TYPE => "SYNC"  -- Glitchles ("SYNC") or fast ("ASYNC") clock switch-over
---)
---port map (
---   O => adcxClock(1),   -- 1-bit output: Clock buffer output
---   I0 => clk_out(3), -- 1-bit input: Clock buffer input (S=0)
---   I1 => clk_out(2), -- 1-bit input: Clock buffer input (S=1)
---   S => adcx_enable(2)
---);
---
---adcx_enableRes <= adcx_enable(0) or adcx_enable(1);
---
---BUFGMUX_inst3 : BUFGMUX
---generic map (
---   CLK_SEL_TYPE => "SYNC"  -- Glitchles ("SYNC") or fast ("ASYNC") clock switch-over
---)
---port map (
---   O => adcxClock(2),   -- 1-bit output: Clock buffer output
---   I0 => clk_out(1), -- 1-bit input: Clock buffer input (S=0)
---   I1 => clk_out(0), -- 1-bit input: Clock buffer input (S=1)
---   S => adcx_enableRes
---);
 
 adcx_gclk(0) <= adcx_gclk_out(0);
 adcx_gclk(1) <= adcx_gclk_out(1);
