@@ -213,12 +213,12 @@ begin
   elsif rising_edge(gclk) then
     case state is
       when 0 =>
-        bs_counter <= (others => '0');
-        deser_rst <= '0';
-        if (tick_counter < 15) then
-          tick_counter <= tick_counter + 1;
+        deser_rst <= '1';
+        if (tick_counter > 15) then
+          tick_counter <= 0;
+          state <= 3;
         else
-          state <= 1;
+          tick_counter <= tick_counter + 1;
         end if;
       when 1 =>
         if (frame /= frame_sync_pattern) then
@@ -242,6 +242,14 @@ begin
           tick_counter <= tick_counter + 1 ;
         else
          state <= 1 ;
+        end if;
+      when 3 =>
+        bs_counter <= (others => '0');
+        deser_rst <= '0';
+        if (tick_counter < 128) then
+          tick_counter <= tick_counter + 1;
+        else
+          state <= 1;
         end if;
       when others =>
         state <= 0;

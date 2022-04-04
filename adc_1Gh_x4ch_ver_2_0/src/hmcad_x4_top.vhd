@@ -157,7 +157,6 @@ architecture Behavioral of hmcad_x4_top is
     signal reg_address_int              : integer;
     
     signal adcx_calib_done              : std_logic_vector(3 downto 0);
-    signal adcx_calib_done_d            : std_logic_vector(3 downto 0);
     signal adcx_tick_ms                 : std_logic_vector(3 downto 0);
     signal adcx_tick_ms_d0              : std_logic_vector(3 downto 0);
     signal adcx_tick_ms_d1              : std_logic_vector(3 downto 0);
@@ -325,8 +324,7 @@ end process;
 process(clk_125MHz)
 begin
   if rising_edge(clk_125MHz) then
-    adcx_calib_done_d <= adcx_calib_done;
-    dd(1) <= adcx_calib_done_d(3) and adcx_calib_done_d(2) and adcx_calib_done_d(1) and adcx_calib_done_d(0);
+    dd(1) <= adcx_calib_done(3) and adcx_calib_done(2) and adcx_calib_done(1) and adcx_calib_done(0);
     dd(0) <= pll_lock;
   end if;
 end process;
