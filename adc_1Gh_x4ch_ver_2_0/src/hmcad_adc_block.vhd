@@ -73,7 +73,6 @@ entity hmcad_adc_block is
       gclk_out                  : out std_logic;
 
       calib_done                : out std_logic;
-      tick_ms                   : out std_logic;
 
       recorder_interrupt        : out std_logic;
       recorder_rst              : in std_logic;
@@ -106,7 +105,6 @@ architecture Behavioral of hmcad_adc_block is
   signal recorder_rdy_dvec              : std_logic_vector(2 downto 0);
   signal recorder_rst_sync              : std_logic;
   signal recorder_rdy_sync              : std_logic;
-  signal trigger_capture_rst            : std_logic;
   signal d0_trigger_set                 : std_logic;
   signal d1_trigger_set                 : std_logic;
   signal d2_trigger_set                 : std_logic;
@@ -120,30 +118,9 @@ architecture Behavioral of hmcad_adc_block is
   signal bs_counter                     : std_logic_vector(4 downto 0);
   signal tick_counter                   : integer;
   signal rec_valid                      : std_logic;
-  signal tick_ms_counter                : integer;
-  signal tick                           : std_logic;
   signal gclk_bufg                      : std_logic;
 
 begin
-
-tick_ms_proc :
-  process(gclk_bufg, areset, valid)
-  begin
-    if ((areset = '1') or (valid = '0'))then
-      tick_ms_counter <= 0;
-      tick <= '0';
-    elsif rising_edge(gclk_bufg) then
-      if tick_ms_counter < 124999 then
-        tick_ms_counter <= tick_ms_counter + 1;
-      else
-        tick <= not tick;
-        tick_ms_counter <= 0;
-      end if;
-    end if;
-  end process;
-
-tick_ms <= tick;
-
 
 recorder_irq_proc :
   process(gclk, recorder_rst_all)
@@ -163,17 +140,13 @@ trigger_sync_process :
   process(gclk)
   begin
     if rising_edge(gclk) then
-      d0_trigger_set       <= trigger_set      ;
-      d1_trigger_set       <= d0_trigger_set      ;
-      d2_trigger_set <= d1_trigger_set;
+      d0_trigger_set       <= trigger_set;
+      d1_trigger_set       <= d0_trigger_set;
+      d2_trigger_set       <= d1_trigger_set;
       
       set <= (d2_trigger_set) and (not d1_trigger_set);
     end if;
   end process;
-
-trigger_capture_rst <= areset or (not enable);
-
-
 
 trigger_capture_inst : entity trigger_capture
   generic map(
@@ -199,7 +172,7 @@ trigger_capture_inst : entity trigger_capture
     trigger_start     => trigger_out
   );
 
-process (gclk, areset, enable)
+process (gclk, areset)
 begin
   if (areset = '1') then
     state <= 0 ;
@@ -208,8 +181,6 @@ begin
     valid <= '0';
     deser_rst <= '1';
     tick_counter <= 0;
-  elsif (enable = '0') then
-    valid <= '1';
   elsif rising_edge(gclk) then
     case state is
       when 0 =>
@@ -260,7 +231,7 @@ begin
   end if ;
 end process;
 
-calib_done <= valid;
+calib_done <= valid when enable = '1' else '1';
 
 serdes_1_to_n_clk_ddr_s8_diff_inst : entity serdes_1_to_n_clk_ddr_s8_diff 
   generic map (

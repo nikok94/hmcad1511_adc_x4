@@ -51,7 +51,7 @@ entity hmcad_x4_block is
     clk                     : in std_logic;
     areset                  : in std_logic;
     TriggerSetUp            : in std_logic_vector(15 downto 0);
-    ADCEnableReg            : in std_logic_vector(15 downto 0);
+    ADCEnableReg            : in std_logic_vector(3 downto 0);
     TriggerPositionSetUp    : in std_logic_vector(15 downto 0);
     mode                    : in std_logic_vector(1 downto 0);
     start                   : in std_logic;
@@ -71,8 +71,6 @@ entity hmcad_x4_block is
 
     adcx_calib_done         : out std_logic_vector(3 downto 0);
     adcx_interrupt          : out std_logic_vector(3 downto 0);
-    adcx_tick_ms            : out std_logic_vector(3 downto 0);
-    
     recorder_rst            : in std_logic;
 
     slave_x_clk             : out std_logic_vector(4 - 1 downto 0);
@@ -239,7 +237,6 @@ adc_block_gen : for i in 0 to recorder_rst_vec'length - 1 generate
     gclk_out              => adcx_gclk_out(i),
 
     calib_done            => adcx_calib_done(i),
-    tick_ms               => adcx_tick_ms(i),
     
     recorder_interrupt    => adcx_interrupt(i),
     recorder_rst          => recorder_rst_vec(i),
