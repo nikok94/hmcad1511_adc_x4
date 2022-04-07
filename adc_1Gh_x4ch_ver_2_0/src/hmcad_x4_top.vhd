@@ -126,7 +126,7 @@ architecture Behavioral of hmcad_x4_top is
                                             SPIRegistersStrucrure'pos(ADCEnableReg) => x"0007",
                                             SPIRegistersStrucrure'pos(TriggerPositionSetUp) => x"0800",
                                             SPIRegistersStrucrure'pos(ControlReg) => x"0000",
-                                            SPIRegistersStrucrure'pos(PulseOffset) => x"0040",
+                                            SPIRegistersStrucrure'pos(PulseOffset) => x"0000",
                                             SPIRegistersStrucrure'pos(MarkOffset) => x"0007",
                                             SPIRegistersStrucrure'pos(MarkLength) => x"0004",
                                             others => (others => '0')
@@ -235,6 +235,8 @@ architecture Behavioral of hmcad_x4_top is
     signal hmcad_x4_activeCnt           : std_logic_vector(7 downto 0);
     signal hmcad_x4_calibDone           : std_logic;
     signal hmcad_x4_adc_enable          : std_logic_vector(3 downto 0);
+    
+    signal trig_position_res            : std_logic_vector(15 downto 0);
 
 begin
 
@@ -299,85 +301,6 @@ begin
 end process;
 
 hmcad_x4_adc_enable <= SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(hmcad_x4_active_status'length - 1 downto 0);
-
---process(clk_125MHz, rst)
---begin
---  if (rst = '1') then 
---    hmcad_x4_block_rst <= '1';
---    adcx_tick_ms_counter0 <= 0;
---    adcx_tick_ms_counter1 <= 0;
---    adcx_tick_ms_counter2 <= 0;
---    adcx_tick_ms_counter3 <= 0;
---    hmcad_rst_counter <= (others => '0');
---  elsif rising_edge(clk_125MHz) then
---    adcx_tick_ms_d0 <= adcx_tick_ms;
---    adcx_tick_ms_d1 <= adcx_tick_ms_d0;
---    
---    if (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(0) = '1') then
---      if (((adcx_tick_ms_d0(0) = '0') and adcx_tick_ms_d1(0) = '1') or ((adcx_tick_ms_d0(0) = '1') and adcx_tick_ms_d1(0) = '0')) then
---        adcx_tick_ms_counter0 <= 0;
---      else
---        adcx_tick_ms_counter0 <= adcx_tick_ms_counter0 + 1;
---      end if;
---    else
---      adcx_tick_ms_counter0 <= 0;
---    end if;
---    
---    if (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(1) = '1') then
---      if (((adcx_tick_ms_d0(1) = '0') and adcx_tick_ms_d1(1) = '1') or ((adcx_tick_ms_d0(1) = '1') and adcx_tick_ms_d1(1) = '0')) then
---        adcx_tick_ms_counter1 <= 0;
---      else
---        adcx_tick_ms_counter1 <= adcx_tick_ms_counter1 + 1;
---      end if;
---    else
---      adcx_tick_ms_counter1 <= 0;
---    end if;
---    
---    if (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(2) = '1') then
---      if (((adcx_tick_ms_d0(2) = '0') and adcx_tick_ms_d1(2) = '1') or ((adcx_tick_ms_d0(2) = '1') and adcx_tick_ms_d1(2) = '0')) then
---        adcx_tick_ms_counter2 <= 0;
---      else
---        adcx_tick_ms_counter2 <= adcx_tick_ms_counter2 + 1;
---      end if;
---    else
---      adcx_tick_ms_counter2 <= 0;
---    end if;
---    
---    if (SPIRegisters(SPIRegistersStrucrure'pos(ADCEnableReg))(3) = '1') then
---      if (((adcx_tick_ms_d0(3) = '0') and adcx_tick_ms_d1(3) = '1') or ((adcx_tick_ms_d0(3) = '1') and adcx_tick_ms_d1(3) = '0')) then
---        adcx_tick_ms_counter3 <= 0;
---      else
---        adcx_tick_ms_counter3 <= adcx_tick_ms_counter3 + 1;
---      end if;
---    else
---      adcx_tick_ms_counter3 <= 0;
---    end if;
---    
---    if (spi_rst_cmd = '1') then 
---      hmcad_x4_block_rst <= '1';
---      hmcad_rst_counter <= (0 => '1', others => '0');
---    elsif (adcx_tick_ms_counter0 > 1250000) then
---      hmcad_x4_block_rst <= '1';
---      hmcad_rst_counter <= hmcad_rst_counter + 1;
---      adcx_tick_ms_counter0 <= 0;
---    elsif (adcx_tick_ms_counter1 > 1250000) then
---      hmcad_x4_block_rst <= '1';
---      hmcad_rst_counter <= hmcad_rst_counter + 1;
---      adcx_tick_ms_counter1 <= 0;
---    elsif (adcx_tick_ms_counter2 > 1250000) then
---      hmcad_x4_block_rst <= '1';
---      hmcad_rst_counter <= hmcad_rst_counter + 1;
---      adcx_tick_ms_counter2 <= 0;
---    elsif (adcx_tick_ms_counter3 > 1250000) then
---      hmcad_x4_block_rst <= '1';
---      hmcad_rst_counter <= hmcad_rst_counter + 1;
---      adcx_tick_ms_counter2 <= 0;
---    else
---      hmcad_x4_block_rst <= '0';
---    end if;
---  end if;
---end process;
-
 
 dd(dd'length - 1 downto 7) <= (others => 'Z');
 dd(6) <= adcx_calib_done(3);
@@ -524,48 +447,6 @@ pulse_proc :
   end process;
 
 
---pulse_proc :
---  process(clk_125MHz)
---  begin
---    if rising_edge(clk_125MHz) then
---      if (start_pulse = '1') then
---        pulse_cnt <= (others => '0');
---        pulse <= '1';
---      else
---        if (pulse = '1') then
---          if (pulse_cnt(pulse_cnt'length - 1) = '1') then
---            pulse <= '0';
---          else
---            pulse_cnt <= pulse_cnt + 1;
---          end if;
---        end if;
---      end if;
---    end if;
---  end process;
---
-----process(hmcad_x_clk(0))
-----begin
-----  if rising_edge(hmcad_x_clk(0)) then
-----    pulse_sync_vec(0) <= pulse;
-----    pulse_sync_vec(pulse_sync_vec'length - 1 downto 1) <= pulse_sync_vec(pulse_sync_vec'length - 2 downto 0);
-----    pulse_sync <= (not pulse_sync_vec(pulse_sync_vec'length - 1)) and pulse_sync_vec(pulse_sync_vec'length - 2);
-----  end if;
-----end process;
---
---process(clk_125MHz)
---begin
---  if rising_edge(clk_125MHz) then
---    pulse_sync_vec(0) <= pulse;
---    pulse_sync_vec(pulse_sync_vec'length - 1 downto 1) <= pulse_sync_vec(pulse_sync_vec'length - 2 downto 0);
---    pulse_sync <= (not pulse_sync_vec(pulse_sync_vec'length - 1)) and pulse_sync_vec(pulse_sync_vec'length - 2);
---  end if;
---end process;
-
---pulse_p <= not pulse;
---pulse_n <= pulse;
-
-
-
 pulse_out_proc : process(clk_125MHz)
 begin
   if rising_edge(clk_125MHz) then
@@ -611,6 +492,9 @@ adcx_dx_b_n <= adc3_dx_b_n & adc2_dx_b_n & adc1_dx_b_n & adc0_dx_b_n;
 
 hmcad_x4_block_start <= repeat_start or trigger_start;
 
+
+trig_position_res <= SPIRegisters(SPIRegistersStrucrure'pos(TriggerPositionSetUp)) when (trigger_mode /= "10") else (others => '0');
+
 hmcad_x4_block_inst : entity hmcad_x4_block
   Generic map (
     c_max_num_data         => c_max_num_data
@@ -620,7 +504,7 @@ hmcad_x4_block_inst : entity hmcad_x4_block
     areset                  => rst,--hmcad_x4_block_rst,
     TriggerSetUp            => SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp)),
     ADCEnableReg            => hmcad_x4_adc_enable,
-    TriggerPositionSetUp    => SPIRegisters(SPIRegistersStrucrure'pos(TriggerPositionSetUp)),
+    TriggerPositionSetUp    => trig_position_res,
     mode                    => trigger_mode,
     start                   => hmcad_x4_block_start,
     

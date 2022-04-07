@@ -68,27 +68,27 @@ begin
         compleat <= '0';
         if (start = '1') then
           state <= x"01";
-          n_count_max <= state_cnt_max - start_offset;
+          n_count_max <= state_cnt_max - c_start_delay;
         end if;
         we_a <= '0';
         valid <= '0';
-      when x"01" =>
+      when x"01" => -- wait until the impulse passes through the path ADC
         if (state_cnt < mark_delay) then
           state_cnt <= state_cnt + 1;
         else
           state <= x"02";
-          n_count_max <= n_count_max-c_start_delay;
+          n_count_max <= n_count_max - start_offset;
           state_cnt <= (others => '0');
           we_a <= '1';
         end if;
-      when x"02" =>
+      when x"02" => -- impulse recording 
         state_cnt <= state_cnt + 1;
         if (state_cnt >= mark_length) then
           state <= x"03";
           n_count_max <= n_count_max - mark_length;
         end if;
       when x"03" =>
-        if (state_cnt = state_cnt_max) then
+        if (state_cnt >= state_cnt_max) then
           state_cnt <= mark_length;
         else
           state_cnt <= state_cnt + 1;
