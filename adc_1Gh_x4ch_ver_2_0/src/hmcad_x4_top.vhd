@@ -348,11 +348,11 @@ sys_rst <= (not xc_sys_rstn);
 
 Clock_gen_inst : entity clock_generator
     Port map( 
-      clk_in            => in_clk_20MHz,
+      clk_in            => in_clk_50MHz,
       rst_in            => sys_rst,
       pll_lock          => pll_lock,
       clk_out_125MHz    => clk_125MHz,
-      clk_out_250MHz    => clk_250MHz,
+--      clk_out_250MHz    => clk_250MHz,
       rst_out           => infrst_rst_out
     );
 

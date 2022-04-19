@@ -37,8 +37,8 @@ entity clock_generator is
       rst_in            : in std_logic;
       pll_lock          : out std_logic;
       clk_out_125MHz    : out std_logic;
-      clk_out_250MHz    : out std_logic;
-      clk_out_500MHz    : out std_logic;
+--      clk_out_250MHz    : out std_logic;
+--      clk_out_500MHz    : out std_logic;
       rst_out           : out std_logic
     );
 end clock_generator;
@@ -72,19 +72,19 @@ rst <= rst_vector(7);
 
 PLL_BASE_inst : PLL_BASE
    generic map (
-      BANDWIDTH => "OPTIMIZED",             -- "HIGH", "LOW" or "OPTIMIZED" 
-      CLKFBOUT_MULT => 50,                   -- Multiply value for all CLKOUT clock outputs (1-64)
+      BANDWIDTH => "HIGH",             -- "HIGH", "LOW" or "OPTIMIZED" 
+      CLKFBOUT_MULT => 10,                   -- Multiply value for all CLKOUT clock outputs (1-64)
       CLKFBOUT_PHASE => 0.0,                -- Phase offset in degrees of the clock feedback output
                                             -- (0.0-360.0).
-      CLKIN_PERIOD => 50.0,                  -- Input clock period in ns to ps resolution (i.e. 33.333 is 30
+      CLKIN_PERIOD => 20.0,                  -- Input clock period in ns to ps resolution (i.e. 33.333 is 30
                                             -- MHz).
       -- CLKOUT0_DIVIDE - CLKOUT5_DIVIDE: Divide amount for CLKOUT# clock output (1-128)
-      CLKOUT0_DIVIDE => 8,
-      CLKOUT1_DIVIDE => 4,
-      CLKOUT2_DIVIDE => 2,
+      CLKOUT0_DIVIDE => 4,
+      CLKOUT1_DIVIDE => 5,
+      CLKOUT2_DIVIDE => 10,
       CLKOUT3_DIVIDE => 10,
-      CLKOUT4_DIVIDE => 1,
-      CLKOUT5_DIVIDE => 1,
+      CLKOUT4_DIVIDE => 10,
+      CLKOUT5_DIVIDE => 10,
       -- CLKOUT0_DUTY_CYCLE - CLKOUT5_DUTY_CYCLE: Duty cycle for CLKOUT# clock output (0.01-0.99).
       CLKOUT0_DUTY_CYCLE => 0.5,
       CLKOUT1_DUTY_CYCLE => 0.5,
@@ -123,8 +123,8 @@ pll_lock <= LOCKED;
 
 bufg1_inst : BUFG port map ( I => CLKFBOUT, O => CLKFBOUT_bufg);
 bufg2_inst : BUFG port map ( I => pll_clkout_0, O => clk_out_125MHz);
-bufg3_inst : BUFG port map ( I => pll_clkout_1, O => clk_out_250MHz);
-bufg4_inst : BUFG port map ( I => pll_clkout_2, O => clk_out_500MHz);
+--bufg3_inst : BUFG port map ( I => pll_clkout_1, O => clk_out_250MHz);
+--bufg4_inst : BUFG port map ( I => pll_clkout_2, O => clk_out_500MHz);
 --bufg5_inst : BUFG port map ( I => pll_clkout_3, O => clk_out_100MHz_180);
 --bufg3_inst : BUFG port map ( I => rst, O => rst_out);
 rst_out <= rst;
