@@ -1,3 +1,4 @@
+NET "vic_pulse" LOC = T15;
 NET "spifi_sck" IOSTANDARD = LVCMOS33;
 NET "spifi_sio[2]" IOSTANDARD = LVCMOS33;
 NET "i2c_sda" IOSTANDARD = LVCMOS33;

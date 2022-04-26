@@ -104,7 +104,9 @@ entity hmcad_x4_top is
         pulse_n                 : out std_logic := '0';
         pulse_p                 : out std_logic := '0';
         
-        led                     : out std_logic
+        led                     : out std_logic;
+
+        vic_pulse               : out std_logic
 
         );
 end hmcad_x4_top;
@@ -137,6 +139,7 @@ architecture Behavioral of hmcad_x4_top is
                                         mode_1,
                                         pulse_start,
                                         buffer_rst,
+                                        test_vic_start,
                                         StructureLength);
     signal MISO_I                       : std_logic := '0';
     signal MISO_O                       : std_logic;
@@ -430,6 +433,7 @@ spi_write_process :
     end if;
   end process;
 
+vic_pulse <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(test_vic_start));
 start_pulse <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(pulse_start));
 hmcad_buffer_rst <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(buffer_rst));
 trigger_start <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(mode_1)) or SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(mode_0));
