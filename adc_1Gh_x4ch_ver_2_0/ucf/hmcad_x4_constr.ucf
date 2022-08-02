@@ -1,5 +1,7 @@
 INST "hmcad_x4_block_inst/adc_block_gen[3].adc0_inst" AREA_GROUP = "pblock_adc_blck_gn[3].adc0_inst";
 AREA_GROUP "pblock_adc_blck_gn[3].adc0_inst" RANGE=SLICE_X8Y32:SLICE_X15Y46;
+INST "QSPI_interconnect_inst" AREA_GROUP = "pblock_QSP_intrcnct_inst_1";
+AREA_GROUP "pblock_QSP_intrcnct_inst_1" RANGE=SLICE_X8Y48:SLICE_X29Y55;
 NET "vic_pulse" LOC = T15;
 NET "spifi_sck" IOSTANDARD = LVCMOS33;
 NET "spifi_sio[2]" IOSTANDARD = LVCMOS33;
@@ -465,3 +467,5 @@ INST "hmcad_x4_block_inst/adc_block_gen[2].adc0_inst/data_recorder_inst/dpram_in
 INST "hmcad_x4_block_inst/adc_block_gen[1].adc0_inst/data_recorder_inst/dpram_inst/Mram_ram1" LOC = RAMB16_X1Y12;
 INST "hmcad_x4_block_inst/adc_block_gen[3].adc0_inst/data_recorder_inst/dpram_inst/Mram_ram1" LOC = RAMB16_X0Y18;
 INST "hmcad_x4_block_inst/adc_block_gen[3].adc0_inst/data_recorder_inst/dpram_inst/Mram_ram2" LOC = RAMB16_X0Y16;
+INST "spi_fcb_master_inst" AREA_GROUP = "pblock_spi_fcb_master_inst";
+AREA_GROUP "pblock_spi_fcb_master_inst" RANGE=SLICE_X18Y24:SLICE_X21Y39;
