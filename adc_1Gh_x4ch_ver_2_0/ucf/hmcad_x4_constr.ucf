@@ -1,3 +1,7 @@
+INST "hmcad_x4_block_inst/adc_block_gen[3].adc0_inst" AREA_GROUP = "pblock_adc_blck_gn[3].adc0_inst";
+AREA_GROUP "pblock_adc_blck_gn[3].adc0_inst" RANGE=SLICE_X0Y32:SLICE_X3Y61;
+AREA_GROUP "pblock_adc_blck_gn[3].adc0_inst" RANGE=RAMB16_X0Y16:RAMB16_X0Y28;
+AREA_GROUP "pblock_adc_blck_gn[3].adc0_inst" RANGE=RAMB8_X0Y16:RAMB8_X0Y29;
 NET "vic_pulse" LOC = T15;
 NET "spifi_sck" IOSTANDARD = LVCMOS33;
 NET "spifi_sio[2]" IOSTANDARD = LVCMOS33;
@@ -449,3 +453,15 @@ NET "led" LOC = T8;
 
 NET "fpga_sck" CLOCK_DEDICATED_ROUTE = FALSE;
 
+INST "hmcad_x4_block_inst/adc_block_gen[0].adc0_inst" AREA_GROUP = "pblock_adc_blck_gn[0].adc0_inst";
+AREA_GROUP "pblock_adc_blck_gn[0].adc0_inst" RANGE=SLICE_X34Y32:SLICE_X37Y61;
+AREA_GROUP "pblock_adc_blck_gn[0].adc0_inst" RANGE=RAMB16_X1Y16:RAMB16_X1Y28;
+AREA_GROUP "pblock_adc_blck_gn[0].adc0_inst" RANGE=RAMB8_X1Y16:RAMB8_X1Y29;
+INST "hmcad_x4_block_inst/adc_block_gen[1].adc0_inst" AREA_GROUP = "pblock_adc_blck_gn[1].adc0_inst";
+AREA_GROUP "pblock_adc_blck_gn[1].adc0_inst" RANGE=SLICE_X34Y2:SLICE_X37Y31;
+AREA_GROUP "pblock_adc_blck_gn[1].adc0_inst" RANGE=RAMB16_X1Y2:RAMB16_X1Y14;
+AREA_GROUP "pblock_adc_blck_gn[1].adc0_inst" RANGE=RAMB8_X1Y2:RAMB8_X1Y15;
+INST "hmcad_x4_block_inst/adc_block_gen[2].adc0_inst" AREA_GROUP = "pblock_adc_blck_gn[2].adc0_inst";
+AREA_GROUP "pblock_adc_blck_gn[2].adc0_inst" RANGE=SLICE_X0Y2:SLICE_X3Y31;
+AREA_GROUP "pblock_adc_blck_gn[2].adc0_inst" RANGE=RAMB16_X0Y2:RAMB16_X0Y14;
+AREA_GROUP "pblock_adc_blck_gn[2].adc0_inst" RANGE=RAMB8_X0Y2:RAMB8_X0Y15;
