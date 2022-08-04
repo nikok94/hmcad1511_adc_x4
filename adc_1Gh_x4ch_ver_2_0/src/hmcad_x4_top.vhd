@@ -185,15 +185,16 @@ architecture Behavioral of hmcad_x4_top is
     signal trigger_start_out            : std_logic;
     signal spifi_sck_bufg               : std_logic;
     
+    signal hmcad_x_en                   : std_logic_vector(4 - 1 downto 0);
     signal hmcad_x_clk                  : std_logic_vector(4 - 1 downto 0);
     signal hmcad_x_valid                : std_logic_vector(4 - 1 downto 0);
     signal hmcad_x_ready                : std_logic_vector(4 - 1 downto 0);
     signal hmcad_x_data                 : std_logic_vector(4*64 - 1 downto 0);
     signal hmcad_x_int                  : std_logic_vector(4 - 1 downto 0);
     
-    signal qspi_x_clk                   : std_logic_vector(4 - 1 downto 0);
     signal qspi_x_cs_up                 : std_logic_vector(4 - 1 downto 0);
     signal qspi_x_ready                 : std_logic_vector(4 - 1 downto 0);
+    signal qspi_x_en                    : std_logic_vector(4 - 1 downto 0);
     signal qspi_x_data                  : std_logic_vector(4*64 - 1 downto 0);
     
     signal fifo_full_out                : std_logic_vector(4 - 1 downto 0);
@@ -527,7 +528,8 @@ hmcad_x4_block_inst : entity hmcad_x4_block
     triggerOut              => adcxTrigger,
     sync_pulse              => adcxSyncPulse,
  
-    slave_x_clk             => hmcad_x_clk  ,
+    slave_x_clk             => clk_125MHz  ,
+    slave_x_en              => hmcad_x_en  ,
     slave_x_valid           => hmcad_x_valid,
     slave_x_ready           => hmcad_x_ready,
     slave_x_data            => hmcad_x_data ,
@@ -536,8 +538,8 @@ hmcad_x4_block_inst : entity hmcad_x4_block
     recorder_rst            => hmcad_buffer_rst,
 
     adcx_calib_done         => adcx_calib_done,
-    adcx_interrupt          => hmcad_x_int
-
+    adcx_interrupt          => hmcad_x_int,
+    adcx_clk                => hmcad_x_clk
   );
 
 --defPulse0_inst_gen : for i in 0 to hmcad_x_clk'length-1 generate
@@ -566,10 +568,10 @@ hmcad_x4_block_inst : entity hmcad_x4_block
 
 
 int_adcx <= hmcad_x_int;
-qspi_x_clk <= hmcad_x_clk;
 hmcad_x_ready <= qspi_x_ready;
 qspi_x_data <= hmcad_x_data;
-
+hmcad_x_en <= qspi_x_en;
+ 
 QSPI_interconnect_inst : entity QSPI_interconnect
   Generic map(
     c_num_slave_port    => 4,
@@ -580,7 +582,8 @@ QSPI_interconnect_inst : entity QSPI_interconnect
     C_LSB_FIRST         => false
   )
   Port map(
-    slave_x_clk         => qspi_x_clk,
+    slave_x_clk         => clk_125MHz,
+    slave_x_en          => qspi_x_en,
     slave_x_ready       => qspi_x_ready,
     slave_x_data        => qspi_x_data ,
     slave_x_cs_up       => qspi_x_cs_up,

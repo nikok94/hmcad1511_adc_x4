@@ -23,6 +23,7 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.STD_LOGIC_unsigned.ALL;
 use IEEE.math_real.ALL;
+use ieee.std_logic_misc.or_reduce;
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
 --use IEEE.NUMERIC_STD.ALL;
@@ -69,11 +70,13 @@ entity hmcad_x4_block is
     mark_delay              : in std_logic_vector(15 downto 0);
     mark_length             : in std_logic_vector(15 downto 0);
 
+    adcx_clk                : out std_logic_vector(3 downto 0);
     adcx_calib_done         : out std_logic_vector(3 downto 0);
     adcx_interrupt          : out std_logic_vector(3 downto 0);
     recorder_rst            : in std_logic;
 
-    slave_x_clk             : out std_logic_vector(4 - 1 downto 0);
+    slave_x_clk             : in std_logic;
+    slave_x_en              : in std_logic_vector(4 - 1 downto 0);
     slave_x_valid           : out std_logic_vector(4 - 1 downto 0);
     slave_x_ready           : in std_logic_vector(4 - 1 downto 0);
     slave_x_data            : out std_logic_vector(4*c_data_width - 1 downto 0);
@@ -196,9 +199,6 @@ state_proc :
     end if;
   end process;
 
-
-
-
 trig_position <= TriggerPositionSetUp;
 adcx_enable <= ADCEnableReg(3 downto 0);
 mux_data_selector <= TriggerSetUp(3 downto 2);
@@ -216,6 +216,7 @@ adc_block_gen : for i in 0 to recorder_rst_vec'length - 1 generate
     trigger_level         => TriggerSetUp(15 downto 8),
     trigger_mode          => mode,
     trigger_set           => adcx_start,
+    trigger_offset        => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0),
 
     trigger_out           => trigger_out(i),
     trigger_in            => trigger,
@@ -237,13 +238,14 @@ adc_block_gen : for i in 0 to recorder_rst_vec'length - 1 generate
     gclk_out              => adcx_gclk_out(i),
 
     calib_done            => adcx_calib_done(i),
-    
-    recorder_interrupt    => adcx_interrupt(i),
-    recorder_rst          => recorder_rst_vec(i),
-    recorder_data         => recx_data(i),
-    recorder_valid        => recx_valid(i),
-    recorder_ready        => slave_x_ready(i),
-    recorder_offset       => trig_position(natural(round(log2(real(c_max_num_data))))-1 downto 0)
+
+    m_rst                 => recorder_rst_vec(i),
+    m_clk                 => slave_x_clk,
+    m_en                  => slave_x_en(i),
+    m_data                => recx_data(i),
+    m_valid               => recx_valid(i),
+    m_ready               => slave_x_ready(i),
+    m_irq                 => adcx_interrupt(i)
   );
   
 end generate;
@@ -263,7 +265,7 @@ begin
   end case;
 end process;
 
-trigger <= trigger_out(0) or trigger_out(1) or trigger_out(2) or trigger_out(3);
+trigger <= or_reduce(trigger_out); --trigger_out(0) or trigger_out(1) or trigger_out(2) or trigger_out(3);
 triggerOut <= trigger;
 
 adcx_gclk(0) <= adcx_gclk_out(0);
@@ -272,7 +274,7 @@ adcx_gclk(2) <= adcx_gclk_out(2);
 adcx_gclk(3) <= adcx_gclk_out(3);
 
 slave_x_valid <= recx_valid;
-slave_x_clk <= adcx_gclk;
+adcx_clk <= adcx_gclk;
 slave_x_data <= recx_data(3) & recx_data(2) & recx_data(1) & recx_data(0);
 
 end Behavioral;

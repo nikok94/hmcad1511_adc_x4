@@ -32,7 +32,8 @@ add_files -norecurse ../src/QSPI_interconnect.vhd
 add_files -norecurse ../src/hmcad_x4_block.vhd
 add_files -norecurse ../src/data_recorder.vhd
 add_files -norecurse ../src/trigger_capture.vhd
-add_files -norecurse ../src/true_dpram_sclk.vhd
+#add_files -norecurse ../src/true_dpram_sclk.vhd
+add_files -norecurse ../src/async_ram_dual_port.vhd
 add_files -norecurse ../src/serdes_1_to_n_clk_ddr_s8_diff.vhd
 #add_files -norecurse ../src/serdes_1_to_n_data_ddr_s8_diff.v
 add_files -norecurse ../src/serdes_1_to_n_data_ddr_s8_diff.vhd

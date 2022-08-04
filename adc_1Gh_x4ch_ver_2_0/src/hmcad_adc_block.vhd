@@ -73,13 +73,17 @@ entity hmcad_adc_block is
       gclk_out                  : out std_logic;
 
       calib_done                : out std_logic;
+      
+      trigger_offset            : in std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0);
 
-      recorder_interrupt        : out std_logic;
-      recorder_rst              : in std_logic;
-      recorder_data             : out std_logic_vector(63 downto 0);
-      recorder_valid            : out std_logic;
-      recorder_ready            : in std_logic;
-      recorder_offset           : in std_logic_vector(natural(round(log2(real(c_max_num_data))))-1 downto 0)
+      m_rst                     : in std_logic;
+      m_clk                     : in std_logic;
+      m_en                      : in std_logic;
+      m_data                    : out std_logic_vector(63 downto 0);
+      m_valid                   : out std_logic;
+      m_ready                   : in std_logic;
+      m_irq                     : out std_logic
+      
     );
 end hmcad_adc_block;
 
@@ -123,14 +127,14 @@ architecture Behavioral of hmcad_adc_block is
 begin
 
 recorder_irq_proc :
-  process(gclk, recorder_rst_all)
+  process(m_clk, recorder_rst_all)
   begin
     if (recorder_rst_all = '1') then
-      recorder_interrupt <= '0';
+      m_irq <= '0';
       trigger_rst <= '1';
-    elsif rising_edge(gclk) then
+    elsif rising_edge(m_clk) then
       if (rec_valid = '1') then
-        recorder_interrupt <= '1';
+        m_irq <= '1';
       end if;
       trigger_rst <= not trigger_enable;
     end if;
@@ -303,7 +307,7 @@ begin
   end if;
 end process;
 
-recorder_rst_all <= (recorder_rst or areset or (not enable));
+recorder_rst_all <= (m_rst or areset or (not enable));
 
 data_recorder_inst : entity data_recorder
   generic map(
@@ -312,25 +316,27 @@ data_recorder_inst : entity data_recorder
   )
   Port map( 
     rst                       => recorder_rst_all,
-    clk                       => gclk,
     
     mark_delay                => mark_delay ,
     mark_length               => mark_length,
 
     start                     => recorder_start,
     num_data                  => num_data,
-    start_offset              => recorder_offset,
+    start_offset              => trigger_offset,
 
+    s_clk                     => gclk,
+    s_en                      => data_valid,
     s_data                    => data,
     s_valid                   => data_valid,
     s_ready                   => open,
 
-    m_data                    => recorder_data,
+    m_clk                     => m_clk,
+    m_en                      => m_en,
+    m_data                    => m_data,
     m_valid                   => rec_valid,
-    m_ready                   => recorder_ready,
-    
-    compleat                  => open
+    m_ready                   => m_ready
   );
-  recorder_valid <= rec_valid;
+
+  m_valid <= rec_valid;
 
 end Behavioral;
