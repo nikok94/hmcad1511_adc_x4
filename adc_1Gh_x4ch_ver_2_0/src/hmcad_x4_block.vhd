@@ -265,7 +265,10 @@ begin
   end case;
 end process;
 
-trigger <= or_reduce(trigger_out); --trigger_out(0) or trigger_out(1) or trigger_out(2) or trigger_out(3);
+process(trigger_out)
+begin
+  trigger <= or_reduce(trigger_out); --trigger_out(0) or trigger_out(1) or trigger_out(2) or trigger_out(3);
+end process;
 triggerOut <= trigger;
 
 adcx_gclk(0) <= adcx_gclk_out(0);

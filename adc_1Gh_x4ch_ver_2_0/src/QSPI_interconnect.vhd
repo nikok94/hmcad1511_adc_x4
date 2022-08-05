@@ -59,7 +59,7 @@ entity QSPI_interconnect is
 end QSPI_interconnect;
 
 architecture Behavioral of QSPI_interconnect is
-  constant num_stage        : integer := 2;
+  constant num_stage        : integer := 3;
   constant C_NUM_QBURST     : integer := c_data_width / 4;
   signal qspi_t             : std_logic;
   signal sio                : std_logic_vector(3 downto 0);
@@ -72,6 +72,7 @@ architecture Behavioral of QSPI_interconnect is
   signal qcounter           : integer;
   signal ready              : std_logic;
   signal ready_s            : std_logic;
+  signal to_treg            : std_logic_vector(c_data_width - 1 downto 0);
   signal treg               : std_logic_vector(c_data_width - 1 downto 0);
   signal tdata              : std_logic_vector(c_data_width - 1 downto 0);
   signal mode               : std_logic;
@@ -132,6 +133,17 @@ end process;
 process(slave_x_clk)
 begin
   if rising_edge(slave_x_clk) then
+    if (ready_s = '1') then
+      to_treg <= tdata;
+    end if;
+  end if;
+end process;
+
+
+
+process(slave_x_clk)
+begin
+  if rising_edge(slave_x_clk) then
     if (qspi_t = '1') then
       ready_s <= '0';
       ready_sync_vect <= (others => '0');
@@ -185,7 +197,7 @@ ready_proc:
     elsif falling_edge(ssck) then
       if (qspi_t = '1') then
         if (cmd_valid = '1') then
-          treg <= slave_x_data(conv_integer(cmd)*c_data_width + c_data_width - 1 downto conv_integer(cmd)*c_data_width);
+          treg <= to_treg;
           cmd_d <= cmd;
           qspi_t <= '0';
           ready <= '1';
@@ -200,7 +212,7 @@ ready_proc:
         else
           ready <= '1';
           qcounter <= 0;
-          treg <= slave_x_data(conv_integer(cmd_d)*c_data_width + c_data_width - 1 downto conv_integer(cmd_d)*c_data_width);
+          treg <= to_treg;
         end if;
       end if;
     end if;
@@ -220,7 +232,7 @@ ready_proc:
     elsif falling_edge(ssck) then
       if (qspi_t = '1') then
         if (cmd_valid = '1') then
-          treg <= slave_x_data(conv_integer(cmd)*c_data_width + c_data_width - 1 downto conv_integer(cmd)*c_data_width);
+          treg <= to_treg;
           cmd_d <= cmd;
           qspi_t <= '0';
           ready <= '1';
@@ -235,7 +247,7 @@ ready_proc:
         else
           ready <= '1';
           qcounter <= 0;
-          treg <= slave_x_data(conv_integer(cmd_d)*c_data_width + c_data_width - 1 downto conv_integer(cmd_d)*c_data_width);
+          treg <= to_treg;
         end if;
       end if;
     end if;

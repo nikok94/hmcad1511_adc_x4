@@ -158,8 +158,6 @@ begin
   end if;
 end process;
 
-addr_a <= state_cnt;
-
 --dpram_inst : entity true_dpram_ss_clk
 --  Generic map(
 --    c_data_width  => c_data_width,
@@ -187,6 +185,7 @@ begin
         if (state_a = x"07") then
           state_b <= x"01";
         end if;
+        addr_b <= (others => '0');
       when x"01" =>
         if ((valid = '1') and (m_ready = '1')) then
           valid <= '0';
