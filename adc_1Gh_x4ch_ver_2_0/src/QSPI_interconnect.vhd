@@ -139,8 +139,6 @@ begin
   end if;
 end process;
 
-
-
 process(slave_x_clk)
 begin
   if rising_edge(slave_x_clk) then

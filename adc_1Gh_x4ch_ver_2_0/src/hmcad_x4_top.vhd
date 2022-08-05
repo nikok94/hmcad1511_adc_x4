@@ -476,14 +476,16 @@ end process;
 --      I => (not pulse)      -- Buffer input 
 --   );
 
-IBUFG_inst : IBUFG
-generic map (
-   IBUF_LOW_PWR => TRUE, -- Low power (TRUE) vs. performance (FALSE) setting for referenced I/O standards
-   IOSTANDARD => "DEFAULT")
-port map (
-   O => spifi_sck_bufg, -- Clock buffer output
-   I => spifi_sck  -- Clock buffer input (connect directly to top-level port)
-);
+--IBUFG_inst : IBUFG
+--generic map (
+--   IBUF_LOW_PWR => TRUE, -- Low power (TRUE) vs. performance (FALSE) setting for referenced I/O standards
+--   IOSTANDARD => "DEFAULT")
+--port map (
+--   O => spifi_sck_bufg, -- Clock buffer output
+--   I => spifi_sck  -- Clock buffer input (connect directly to top-level port)
+--);
+
+spifi_sck_bufg <= spifi_sck;
 
 adcx_lclk_p <= adc3_lclk_p & adc2_lclk_p & adc1_lclk_p & adc0_lclk_p;
 adcx_lclk_n <= adc3_lclk_n & adc2_lclk_n & adc1_lclk_n & adc0_lclk_n;

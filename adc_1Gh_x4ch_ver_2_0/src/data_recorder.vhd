@@ -158,6 +158,8 @@ begin
   end if;
 end process;
 
+addr_a <= state_cnt;
+
 --dpram_inst : entity true_dpram_ss_clk
 --  Generic map(
 --    c_data_width  => c_data_width,
@@ -178,7 +180,6 @@ begin
     state_b <= x"00";
     we_b <= '0';
     valid <= '0';
-    addr_b <= (others => '0');
   elsif rising_edge(m_clk) then
     case (state_b) is
       when x"00" => -- ready
