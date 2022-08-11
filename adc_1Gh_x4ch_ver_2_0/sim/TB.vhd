@@ -108,6 +108,7 @@ architecture Behavioral of TB is
     signal state                    : integer := 0;
     signal data                     : std_logic_vector(63 downto 0):= x"5522336655441122";
     signal clk_20MHz                : std_logic;
+    signal clk_50MHz                : std_logic;
     signal clk_100MHz               : std_logic;
     signal aresetn                  : std_logic :='0';
     signal int_adcx                 : std_logic_vector(3 downto 0);
@@ -313,6 +314,17 @@ begin
   wait for 25ns;
 end process;
 
+clk_50MHz_gen :
+process
+begin
+  clk_50MHz <= '0';
+  wait for 10ns;
+  clk_50MHz <= '1';
+  wait for 10ns;
+end process;
+
+
+
 clk_100MHz_gen :
 process
 begin
@@ -386,7 +398,7 @@ fpga_mosi <= spi_reg(spi_reg'length - 1);
 
 hmcad_x4_top_inst : entity hmcad_x4_top
     Port map(
-        in_clk_50MHz            => '0', 
+        in_clk_50MHz            => clk_50MHz, 
         in_clk_20MHz            => clk_20MHz,
         xc_sys_rstn             => aresetn,
     

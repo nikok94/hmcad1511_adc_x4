@@ -39,6 +39,7 @@ add_files -norecurse ../src/serdes_1_to_n_clk_ddr_s8_diff.vhd
 add_files -norecurse ../src/serdes_1_to_n_data_ddr_s8_diff.vhd
 add_files -norecurse ../src/phase_detector.vhd
 add_files -norecurse ../src/SPI_ADC_250x4/spi_adc_250x4_master.vhd
+add_files -norecurse ../src/async_fifo_x64/async_fifo_x64.xci
 add_files -norecurse ../src/SPI_ADC_250x4/spi_byte_receiver.vhd
 add_files -norecurse ../src/SPI_ADC_250x4/spi_byte_transceiver.vhd
 add_files -norecurse ../src/hmcad_adc_block.vhd
