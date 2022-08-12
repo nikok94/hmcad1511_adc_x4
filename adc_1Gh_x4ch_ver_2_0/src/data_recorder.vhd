@@ -51,7 +51,6 @@ architecture Behavioral of data_recorder is
 
   constant null_data            : std_logic_vector(c_data_width - 1 downto 0):= (others => '0');
   signal state_b                : std_logic_vector(7 downto 0):= (others => '0');
-  signal we_b                   : std_logic:= '0';
   signal addr_b                 : std_logic_vector(natural(round(log2(real(c_max_num_data)))) - 1 downto 0);
 
 begin
@@ -70,7 +69,7 @@ begin
     case (state_a) is
       when x"00" => -- wait rst cnt
         if (s_valid = '1') then
-          if (s_cnt = x"0000_0000") then
+          if (s_cnt = x"0000_0001") then
             state_a <= x"01";
             state_a_cnt <= (others => '0');
           end if;
@@ -84,9 +83,9 @@ begin
           else
             state_a_cnt <= (others => '0');
             state_a <= x"02";
-            en_a <= '1';
           end if;
         end if;
+        en_a <= '1'; 
       when x"02" => -- mask recording
         if (s_valid = '1') then
           if (state_a_cnt < mark_cnt) then
@@ -111,27 +110,17 @@ begin
         end if;
       when x"04" =>  
         if (s_valid = '1') then
-          if (state_a_cnt >= state_cnt_max) then
-            state_a_cnt <= mark_cnt;
-          else
-            state_a_cnt <= state_a_cnt + 1;
-          end if;
-        end if;
-        if (state_a_cnt > stop_cnt) then
-          state_a <= x"05";
-        end if;
-      when x"05" => 
-        if (s_valid = '1') then
           if (state_a_cnt < state_cnt_max) then
             state_a_cnt <= state_a_cnt + 1;
           else
             state_a_cnt <= mark_cnt;
           end if;
+
+          if (s_cnt >= stop_cnt) then
+            state_a <= x"05";
+          end if;
         end if;
-        if (s_cnt = stop_cnt) then
-          state_a <= x"06";
-        end if;
-      when x"06" => -- data recording
+      when x"05" =>  -- data recording
         en_a <= '0';
       when others => --ready
     end case;
@@ -156,12 +145,11 @@ process(m_clk, rst)
 begin
   if (rst = '1') then
     state_b <= x"00";
-    we_b <= '0';
     valid <= '0';
   elsif rising_edge(m_clk) then
     case (state_b) is
       when x"00" => -- ready
-        if (state_a = x"06") then
+        if (state_a = x"05") then
           state_b <= x"01";
         end if;
         addr_b <= (others => '0');
@@ -224,7 +212,7 @@ dpram_inst : entity async_ram_dual_port
     en_a        => en_a,
     en_b        => m_en,
     we_a        => we_a,
-    we_b        => we_b,
+    we_b        => '0',
     addr_a      => addr_a,
     addr_b      => addr_b,
     di_a        => s_data,
