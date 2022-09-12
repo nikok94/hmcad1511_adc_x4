@@ -53,9 +53,6 @@ entity hmcad_adc_block is
       calib_done                : out std_logic;
       gclk_out                  : out std_logic;
       
-      cnt_rst                   : in std_logic;
-      cnt_out                   : out std_logic_vector(31 downto 0);
-      
       data_out                  : out std_logic_vector(63 downto 0);
       frame_out                 : out std_logic_vector(7 downto 0);
       valid_out                 : out std_logic
@@ -81,22 +78,10 @@ architecture Behavioral of hmcad_adc_block is
   signal tick_counter                   : integer;
   signal gclk_bufg                      : std_logic;
   signal gclk                           : std_logic;
-  signal cnt                            : std_logic_vector(31 downto 0);
 
 begin
 
 gclk <= gclk_bufg;
-
-cnt_out <= cnt;
-
-process (gclk, areset, cnt_rst)
-begin
-  if ((areset = '1') or (cnt_rst = '1')) then
-    cnt <= (others => '0');
-  elsif rising_edge(gclk) then
-    cnt <= cnt + 1;
-  end if;
-end process;
 
 process (gclk, areset)
 begin

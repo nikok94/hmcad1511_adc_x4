@@ -43,20 +43,23 @@ end data_recorder;
 architecture Behavioral of data_recorder is
   signal state_a                : std_logic_vector(7 downto 0):= (others => '0');
   constant state_cnt_max        : std_logic_vector(natural(round(log2(real(c_max_num_data)))) - 1 downto 0):= (others => '1');
-  signal state_a_cnt            : std_logic_vector(natural(round(log2(real(c_max_num_data)))) - 1 downto 0);
+  signal state_a_cnt            : std_logic_vector(natural(round(log2(real(c_max_num_data)))) - 1 downto 0):= (others => '0');
   signal addr_a                 : std_logic_vector(natural(round(log2(real(c_max_num_data)))) - 1 downto 0);
   signal we_a                   : std_logic:= '0';
   signal en_a                   : std_logic:= '0';
   signal valid                  : std_logic:= '0';
+  
+
 
   constant null_data            : std_logic_vector(c_data_width - 1 downto 0):= (others => '0');
-  signal state_b                : std_logic_vector(7 downto 0):= (others => '0');
-  signal addr_b                 : std_logic_vector(natural(round(log2(real(c_max_num_data)))) - 1 downto 0);
-
+  type state_b_type          is (IDLE, WAIT_DB, WAIT_M_READY0, ADDR_B_INC0, WAIT_DB1, WAIT_M_READY1, ADDR_B_INC1, CONT);
+  signal state_b                : state_b_type;
+  signal addr_b                 : std_logic_vector(natural(round(log2(real(c_max_num_data)))) - 1 downto 0):= (others => '0');
+  signal en_b                   : std_logic:= '0';
 begin
 m_valid <= valid;
 
-addr_a <= state_a_cnt;
+--addr_a <= state_a_cnt;
 
 process(s_clk, rst)
 begin
@@ -65,6 +68,7 @@ begin
     state_a_cnt <= (others => '0');
     en_a <= '0';
     s_ready <= '0';
+    addr_a <= (others => '0');
   elsif rising_edge(s_clk) then
     case (state_a) is
       when x"00" => -- wait rst cnt
@@ -82,24 +86,24 @@ begin
             state_a_cnt <= state_a_cnt + 1;
           else
             state_a_cnt <= (others => '0');
+            addr_a <= (others => '0');
             state_a <= x"02";
           end if;
         end if;
         en_a <= '1'; 
       when x"02" => -- mask recording
         if (s_valid = '1') then
-          if (state_a_cnt < mark_cnt) then
-            state_a_cnt <= state_a_cnt + 1;
-          else
+          if (addr_a >= mark_cnt) then
             state_a <= x"03";
           end if;
+          addr_a <= addr_a + 1;
         end if;
       when x"03" => -- wait trigger
         if (s_valid = '1') then
-          if (state_a_cnt < state_cnt_max) then
-            state_a_cnt <= state_a_cnt + 1;
+          if (addr_a < state_cnt_max) then
+            addr_a <= addr_a + 1;
           else
-            state_a_cnt <= mark_cnt;
+            addr_a <= mark_cnt;
           end if;
         end if;
         if (stop = '1') then
@@ -110,14 +114,16 @@ begin
         end if;
       when x"04" =>  
         if (s_valid = '1') then
-          if (state_a_cnt < state_cnt_max) then
-            state_a_cnt <= state_a_cnt + 1;
+          if (addr_a < state_cnt_max) then
+            addr_a <= addr_a + 1;
           else
-            state_a_cnt <= mark_cnt;
+            addr_a <= mark_cnt;
           end if;
 
           if (s_cnt >= stop_cnt) then
             state_a <= x"05";
+--            state_a_cnt <= addr_a;
+            en_a <= '0';
           end if;
         end if;
       when x"05" =>  -- data recording
@@ -144,35 +150,43 @@ end process;
 process(m_clk, rst)
 begin
   if (rst = '1') then
-    state_b <= x"00";
+    state_b <= IDLE;
     valid <= '0';
   elsif rising_edge(m_clk) then
     case (state_b) is
-      when x"00" => -- ready
+      when IDLE => -- ready
         if (state_a = x"05") then
-          state_b <= x"01";
+          state_b <= WAIT_DB;
+          en_b <= '1';
+        else
+          en_b <= '0';
         end if;
         addr_b <= (others => '0');
-      when x"01" =>
+      when WAIT_DB =>
+        state_b <= WAIT_M_READY0;
+      when WAIT_M_READY0 =>
         if ((valid = '1') and (m_ready = '1')) then
           valid <= '0';
           addr_b <= addr_b + 1;
-          state_b <= x"02";
+          state_b <= ADDR_B_INC0;
         else
           valid <= '1';
         end if;
-      when x"02" =>
+      when ADDR_B_INC0 =>
         if (addr_b < mark_cnt) then
-          state_b <= x"01";
+          state_b <= WAIT_M_READY0;
         else
-          if (state_a_cnt < state_cnt_max) then
-            addr_b <= state_a_cnt + 1;
-          else
-            addr_b <= mark_cnt;
-          end if;
-          state_b <= x"03";
+          --if (addr_a < state_cnt_max) then
+          --  addr_b <= addr_a + 1;
+          --else
+          --  addr_b <= mark_cnt;
+          --end if;
+          addr_b <= addr_a;
+          state_b <= WAIT_DB1;
         end if;
-      when x"03" =>
+      when WAIT_DB1 =>
+        state_b <= WAIT_M_READY1;
+      when WAIT_M_READY1 =>
         if ((valid = '1') and (m_ready = '1')) then
           valid <= '0';
           if (addr_b < state_cnt_max) then
@@ -180,17 +194,18 @@ begin
           else
             addr_b <= mark_cnt;
           end if;
-          state_b <= x"04";
+          state_b <= ADDR_B_INC1;
         else
           valid <= '1';
         end if;
-      when x"04" =>
-        if (addr_b = state_a_cnt) then
-          state_b <= x"05";
+      when ADDR_B_INC1 =>
+        if (addr_b = addr_a) then
+          state_b <= CONT;
         else
-          state_b <= x"03";
+          state_b <= WAIT_M_READY1;
         end if;
       when others => --ready
+        en_b <= '0';
     end case;
   end if;
 end process;
@@ -210,7 +225,7 @@ dpram_inst : entity async_ram_dual_port
     clk_a       => s_clk,
     clk_b       => m_clk,
     en_a        => en_a,
-    en_b        => m_en,
+    en_b        => en_b,
     we_a        => we_a,
     we_b        => '0',
     addr_a      => addr_a,

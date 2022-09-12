@@ -64,7 +64,7 @@ architecture Behavioral of QSPI_interconnect is
   signal qspi_t             : std_logic;
   signal sio                : std_logic_vector(3 downto 0);
   signal cmd                : std_logic_vector(c_command_width - 1 downto 0);
-  signal cmd_d              : std_logic_vector(c_command_width - 1 downto 0);
+  signal cmd_d              : std_logic_vector(c_command_width - 1 downto 0):= (others => '0');
   signal cmd_valid          : std_logic;
   --type sync_vect_type is array(0 to c_num_slave_port - 1) of std_logic_vector(num_stage - 1 downto 0);
   signal ready_sync_vect    : std_logic_vector(num_stage*c_num_slave_port - 1 downto 0);
@@ -101,9 +101,8 @@ spi_data_receiver_inst : entity spi_data_receiver
 
 qspi_sio <= (others => 'Z') when qspi_t = '1' else sio;
 
-process(slave_x_clk)
+process(cmd_d, ready_s, cs_up, slave_x_data)
 begin
-  if (rising_edge(slave_x_clk)) then
     case(cmd_d) is
       when x"00" =>
         slave_x_en <= (0 =>'1', others => '0');
@@ -127,7 +126,6 @@ begin
         tdata <= slave_x_data(c_data_width*3 + c_data_width - 1 downto c_data_width*3);
       when others =>
     end case;
-  end if;
 end process;
 
 process(slave_x_clk)
@@ -192,6 +190,7 @@ ready_proc:
       ready <= '0';
       qcounter <= C_NUM_QBURST;
       treg <= (others => 'Z');
+      cmd_d <= (others => '0');
     elsif falling_edge(ssck) then
       if (qspi_t = '1') then
         if (cmd_valid = '1') then

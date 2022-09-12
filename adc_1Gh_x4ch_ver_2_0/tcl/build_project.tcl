@@ -54,6 +54,8 @@ set_property target_constrs_file ../ucf/hmcad_x4_constr.ucf [current_fileset -co
 
 set_property SOURCE_SET sources_1 [get_filesets sim_1]
 add_files -fileset sim_1 -norecurse -scan_for_includes $root_dir/sim/TB.vhd
+add_files -fileset sim_1 -norecurse -scan_for_includes $root_dir/sim/trigger_capture_TB.vhd
+add_files -fileset sim_1 -norecurse -scan_for_includes $root_dir/sim/data_recorder_TB.vhd
 #add_files -fileset sim_1 -norecurse -scan_for_includes $root_dir/sim/pci_arbt_module.vhd
 #add_files -fileset sim_1 -norecurse -scan_for_includes $root_dir/sim/pci_host_module.vhd
 #add_files -fileset sim_1 -norecurse -scan_for_includes $root_dir/sim/stream_pci_TB.vhd

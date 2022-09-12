@@ -116,14 +116,14 @@ end hmcad_x4_top;
 
 architecture Behavioral of hmcad_x4_top is
     constant C_BURST_WIDTH_SPIFI        : integer := 16;
-    constant c_max_num_data             : integer := 128;  --2048;
+    constant c_max_num_data             : integer := 256;  --2048;
     constant c_channel_num              : integer := 4;
     constant c_wr_rec_cnt_max           : std_logic_vector(natural(round(log2(real(c_max_num_data)))) - 1 downto 0):=(others => '1');
     constant c_wr_rec_null              : std_logic_vector(32 - natural(round(log2(real(c_max_num_data)))) - 1 downto 0):=(others => '0');
     signal wr_rec_cnt                   : std_logic_vector(natural(round(log2(real(c_max_num_data)))) - 1 downto 0);
     signal sys_rst                      : std_logic;
     signal pll_lock                     : std_logic;
-    signal clk_137_5MHz                   : std_logic;
+    signal clk_137_5MHz                 : std_logic;
     signal clk_250MHz                   : std_logic;
     signal rst                          : std_logic;
     signal infrst_rst_out               : std_logic;
@@ -135,6 +135,7 @@ architecture Behavioral of hmcad_x4_top is
                                             SPIRegistersStrucrure'pos(ADCEnableReg) => x"0007",
                                             SPIRegistersStrucrure'pos(TriggerPositionSetUp) => x"0800",
                                             SPIRegistersStrucrure'pos(ControlReg) => x"0000",
+                                            SPIRegistersStrucrure'pos(BufferLength) => conv_std_logic_vector(c_max_num_data, 16),
                                             SPIRegistersStrucrure'pos(PulseOffset) => x"0000",
                                             SPIRegistersStrucrure'pos(MarkOffset) => x"0016",
                                             SPIRegistersStrucrure'pos(MarkLength) => x"0004",
@@ -172,7 +173,7 @@ architecture Behavioral of hmcad_x4_top is
     signal aext_trig                    : std_logic;
     signal trig_start                   : std_logic;
     signal trig_position                : std_logic_vector(15 downto 0);
-    signal spi_rst_cmd                  : std_logic;
+    signal spi_rst_cmd                  : std_logic:= '1';
 --    signal hmcad_x4_block_rst           : std_logic;
     signal trigger_mode                 : std_logic_vector(1 downto 0);
     signal trigger_start                : std_logic;
@@ -192,20 +193,23 @@ architecture Behavioral of hmcad_x4_top is
     signal trigger_start_out            : std_logic;
     signal spifi_sck_bufg               : std_logic;
     
-    signal rec_x_en                   : std_logic_vector(c_channel_num - 1 downto 0);
-    signal rec_x_valid                : std_logic_vector(c_channel_num - 1 downto 0);
-    signal rec_x_ready                : std_logic_vector(c_channel_num - 1 downto 0);
-    signal rec_x_data                 : std_logic_vector(c_channel_num * 64 - 1 downto 0);
+    signal rec_x_en                     : std_logic_vector(c_channel_num - 1 downto 0);
+    signal rec_x_valid                  : std_logic_vector(c_channel_num - 1 downto 0);
+    signal rec_x_ready                  : std_logic_vector(c_channel_num - 1 downto 0);
+    signal rec_x_data                   : std_logic_vector(c_channel_num * 64 - 1 downto 0);
     
     signal hmcad_x_int                  : std_logic_vector(c_channel_num - 1 downto 0);
     signal hmcad_x_clk                  : std_logic_vector(c_channel_num - 1 downto 0);
     signal hmcad_x_valid                : std_logic_vector(c_channel_num - 1 downto 0);
-    signal hmcad_x_data                 : std_logic_vector(c_channel_num * 64 - 1 downto 0);
-    signal hmcad_x_cnt                  : std_logic_vector(c_channel_num * 32 - 1 downto 0);
+    type hmcad_x_data_type              is array (c_channel_num - 1 downto 0) of std_logic_vector(63 downto 0);
+    signal hmcad_x_data_array           : std_logic_vector(c_channel_num * 64 - 1 downto 0);
+    signal hmcad_x_data                 : hmcad_x_data_type;
+    type hmcad_x_cnt_type               is array (c_channel_num - 1 downto 0) of std_logic_vector(31 downto 0);
+    signal hmcad_x_cnt                  : hmcad_x_cnt_type;
 
-    signal hmcad_x_cnt_test_0             : std_logic_vector(c_channel_num * 32 - 1 downto 0);
-    signal hmcad_x_cnt_test_1             : std_logic_vector(c_channel_num * 32 - 1 downto 0);
-    signal hmcad_x_cnt_test_2             : std_logic_vector(c_channel_num * 32 - 1 downto 0);
+    signal hmcad_x_cnt_test_0           : std_logic_vector(c_channel_num * 32 - 1 downto 0);
+    signal hmcad_x_cnt_test_1           : std_logic_vector(c_channel_num * 32 - 1 downto 0);
+    signal hmcad_x_cnt_test_2           : std_logic_vector(c_channel_num * 32 - 1 downto 0);
     
     signal qspi_x_cs_up                 : std_logic_vector(c_channel_num - 1 downto 0);
     signal qspi_x_ready                 : std_logic_vector(c_channel_num - 1 downto 0);
@@ -258,7 +262,7 @@ architecture Behavioral of hmcad_x4_top is
     signal trigger_data_in              : std_logic_vector(63 downto 0);
     signal trigger_rst                  : std_logic;
 
-    signal rec_stop                  : std_logic;
+    signal rec_stop                     : std_logic;
     signal rec_rst                      : std_logic;
     signal rec_stop_cnt                 : std_logic_vector(32 - 1 downto 0);
 
@@ -267,9 +271,14 @@ architecture Behavioral of hmcad_x4_top is
     signal rec_rdy                      : std_logic_vector(c_channel_num - 1 downto 0);
 
     signal mux_data_selector            : std_logic_vector(1 downto 0);
-    signal rec_state                    : std_logic_vector(7 downto 0);
+    type rec_state_type                 is (IDLE, FIFO_RST, WAIT_ADC_ENABLE, RST_ADC_CNT, WAIT_REC_RDY, WAIT_TRG, NORMAL_STRT, AUTO_STRT, EXT_STRT, REC_STOP_CMD, WAIT_REC_IRQ, WAIT_QSPI);
+    signal rec_state                    : rec_state_type;
+    signal rec_state_cnt                : std_logic_vector(7 downto 0);
     signal rec_state_rst                : std_logic;
     signal cnt_rst                      : std_logic;
+    signal buff_logic_reset             : std_logic;
+    signal areset_fifo                  : std_logic;
+    
 begin
 
 rst <= infrst_rst_out;
@@ -373,9 +382,6 @@ begin
   end if;
 end process;
 
-
-
-
 sys_rst <= (not xc_sys_rstn);
 
 Clock_gen_inst : entity clock_generator
@@ -407,13 +413,13 @@ spi_fcb_master_inst : entity spi_adc_250x4_master
 
       m_fcb_clk         => clk_137_5MHz,
       m_fcb_areset      => infrst_rst_out,
-      m_fcb_addr        => m_fcb_addr   ,
-      m_fcb_wrdata      => m_fcb_wrdata ,
-      m_fcb_wrreq       => m_fcb_wrreq  ,
-      m_fcb_wrack       => m_fcb_wrack  ,
-      m_fcb_rddata      => m_fcb_rddata ,
-      m_fcb_rdreq       => m_fcb_rdreq  ,
-      m_fcb_rdack       => m_fcb_rdack  
+      m_fcb_addr        => m_fcb_addr,
+      m_fcb_wrdata      => m_fcb_wrdata,
+      m_fcb_wrreq       => m_fcb_wrreq,
+      m_fcb_wrack       => m_fcb_wrack,
+      m_fcb_rddata      => m_fcb_rddata,
+      m_fcb_rdreq       => m_fcb_rdreq,
+      m_fcb_rdack       => m_fcb_rdack
     );
 
 OBUFT_inst : OBUFT
@@ -458,7 +464,6 @@ spi_write_process :
         m_fcb_rdack <= '0';
         SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(StructureLength) - 1 downto 0) <= (others => '0');
       end if;
-      spi_rst_cmd <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(program_rst));
       SPIRegisters(SPIRegistersStrucrure'pos(BufferLength)) <= conv_std_logic_vector(c_max_num_data, 16);
     end if;
   end process;
@@ -467,6 +472,7 @@ vic_pulse <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'
 start_pulse <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(pulse_start));
 hmcad_buffer_rst <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(buffer_rst));
 trigger_start <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(mode_1)) or SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(mode_0));
+spi_rst_cmd <= SPIRegisters(SPIRegistersStrucrure'pos(ControlReg))(ControlRegType'pos(program_rst));
 
 pulse_proc :
   process(clk_137_5MHz, rst)
@@ -494,26 +500,6 @@ begin
   end if;
 end process;
 
-
-
---OBUFDS_inst : OBUFDS
---   generic map (
---      IOSTANDARD => "DEFAULT")
---   port map (
---      O => pulse_p,     -- Diff_p output (connect directly to top-level port)
---      OB => pulse_n,   -- Diff_n output (connect directly to top-level port)
---      I => (not pulse)      -- Buffer input 
---   );
-
---IBUFG_inst : IBUFG
---generic map (
---   IBUF_LOW_PWR => TRUE, -- Low power (TRUE) vs. performance (FALSE) setting for referenced I/O standards
---   IOSTANDARD => "DEFAULT")
---port map (
---   O => spifi_sck_bufg, -- Clock buffer output
---   I => spifi_sck  -- Clock buffer input (connect directly to top-level port)
---);
-
 spifi_sck_bufg <= spifi_sck;
 
 adcx_lclk_p <= adc3_lclk_p & adc2_lclk_p & adc1_lclk_p & adc0_lclk_p;
@@ -528,54 +514,12 @@ adcx_dx_b_n <= adc3_dx_b_n & adc2_dx_b_n & adc1_dx_b_n & adc0_dx_b_n;
 
 hmcad_x4_block_start <= repeat_start or trigger_start;
 
---hmcad_x4_block_inst : entity hmcad_x4_block
---  Generic map (
---    c_max_num_data         => c_max_num_data
---  )
---  Port map(
---    clk                     => clk_137_5MHz,
---    areset                  => rst,--hmcad_x4_block_rst,
---    TriggerSetUp            => SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp)),
---    ADCEnableReg            => hmcad_x4_adc_enable,
---    TriggerPositionSetUp    => trig_position_res,
---    mode                    => trigger_mode,
---    start                   => hmcad_x4_block_start,
---    
---    mark_delay              => SPIRegisters(SPIRegistersStrucrure'pos(MarkOffset)),
---    mark_length             => SPIRegisters(SPIRegistersStrucrure'pos(MarkLength)),
---    
---    adcx_lclk_p             => adcx_lclk_p,
---    adcx_lclk_n             => adcx_lclk_n,
---    adcx_fclk_p             => adcx_fclk_p,
---    adcx_fclk_n             => adcx_fclk_n,
---    adcx_dx_a_p             => adcx_dx_a_p,
---    adcx_dx_a_n             => adcx_dx_a_n,
---    adcx_dx_b_p             => adcx_dx_b_p,
---    adcx_dx_b_n             => adcx_dx_b_n,
---    
---    triggerOut              => adcxTrigger,
---    sync_pulse              => adcxSyncPulse,
--- 
---    slave_x_clk             => clk_137_5MHz  ,
---    slave_x_en              => hmcad_x_en  ,
---    slave_x_valid           => hmcad_x_valid,
---    slave_x_ready           => hmcad_x_ready,
---    slave_x_data            => hmcad_x_data,
---    slave_x_cs_up           => qspi_x_cs_up,
---    
---    recorder_rst            => hmcad_buffer_rst,
---
---    adcx_calib_done         => adcx_calib_done,
---    adcx_interrupt          => hmcad_x_int,
---    adcx_clk                => hmcad_x_clk
---  );
-
-rec_state_rst <= hmcad_buffer_rst or rst;
+rec_state_rst <= rst or spi_rst_cmd;
 
 rec_state_process : process(clk_137_5MHz, rec_state_rst)
 begin
   if (rec_state_rst = '1') then
-    rec_state <= x"00";
+    rec_state <= IDLE;
     rec_rst <= '1';
     adcxSyncPulse <= '0';
     trigger_rst <= '1';
@@ -583,61 +527,87 @@ begin
     cnt_rst <= '0';
     wr_rec_cnt <= c_wr_rec_cnt_max;
     rec_stop_cnt <= (others => '0');
+    areset_fifo <= '1';
   elsif rising_edge(clk_137_5MHz) then
     case rec_state is
-      when x"00" =>
+      when IDLE =>
         if (hmcad_x4_block_start = '1') then
-          rec_state <= x"01";
-          cnt_rst <= '1';
-          adcxSyncPulse <= '1';
-          wr_rec_cnt <= c_wr_rec_cnt_max - 9;
-        else
-          cnt_rst <= '0';
+          rec_state <= WAIT_ADC_ENABLE;
+          wr_rec_cnt <= c_wr_rec_cnt_max;
         end if;
+        areset_fifo <= '1';
+        cnt_rst <= '1';
         rec_rst <= '1';
         trigger_rst <= '1';
         rec_stop <= '0';
-      when x"01" =>
-        cnt_rst <= '0';
-        rec_rst <= '0';
         adcxSyncPulse <= '0';
-        if (rec_rdy = hmcad_x4_adc_enable) then
-          rec_state <= x"02";
-          wr_rec_cnt <= wr_rec_cnt - SPIRegisters(SPIRegistersStrucrure'pos(MarkLength))(wr_rec_cnt'length - 1 downto 0);
+        rec_state_cnt <= (others => '0');
+      when WAIT_ADC_ENABLE =>
+        if (adcx_calib_done = hmcad_x4_adc_enable) then
+          if (rec_state_cnt < 4) then
+            rec_state_cnt <= rec_state_cnt + 1;
+          else
+            rec_state_cnt <= (others => '0');
+            areset_fifo <= '0';
+            rec_state <= FIFO_RST;
+            wr_rec_cnt <= wr_rec_cnt - SPIRegisters(SPIRegistersStrucrure'pos(MarkLength))(wr_rec_cnt'length - 1 downto 0);
+          end if;
+        else
+          rec_state_cnt <= (others => '0');
         end if;
-      when x"02" =>
+      when FIFO_RST =>
+        if (hmcad_x_valid /= 0) then
+          rec_state <= RST_ADC_CNT;
+        end if;
+      when RST_ADC_CNT =>
+        if (rec_state_cnt < 4) then
+          rec_state_cnt <= rec_state_cnt + 1;
+        else
+          rec_state <= WAIT_REC_RDY;
+          rec_state_cnt <= (others => '0');
+          cnt_rst <= '0';
+          rec_rst <= '0';
+          adcxSyncPulse <= '1';
+        end if;
+      when WAIT_REC_RDY =>
+        adcxSyncPulse <= '0'; 
+        if (rec_rdy = hmcad_x4_adc_enable) then
+          rec_state <= WAIT_TRG;
+        end if;
+      when WAIT_TRG =>
         if (trigger_mode = "01") then-- normal start
+          rec_state <= NORMAL_STRT;
           trigger_rst <= '0';
-          rec_state <= x"03";
           wr_rec_cnt <= wr_rec_cnt - SPIRegisters(SPIRegistersStrucrure'pos(TriggerPositionSetUp))(wr_rec_cnt'length - 1 downto 0);
         elsif (trigger_mode = "11") then -- ext start
-          rec_state <= x"04";
+          rec_state <= EXT_STRT;
         else --auto start
-          rec_state <= x"05";
+          rec_state <= AUTO_STRT;
         end if;
-      when x"03" => -- normal start
+      when NORMAL_STRT => -- normal start
         if (trigger_out = '1') then
-          rec_state <= x"06"; 
+          trigger_rst <= '1';
+          rec_state <= REC_STOP_CMD; 
         end if;
-      when x"04" => -- ext start
-          rec_state <= x"06"; 
-      when x"05" => -- auto start
-          rec_state <= x"06";
-      when x"06" =>
+      when EXT_STRT => -- ext start
+          rec_state <= REC_STOP_CMD; 
+      when AUTO_STRT => -- auto start
+          rec_state <= REC_STOP_CMD;
+      when REC_STOP_CMD =>
         rec_stop_cnt <= trigger_cnt_out + rec_cnt_ofst;
         rec_stop <= '1';
-        rec_state <= x"07";
-      when x"07" =>
+        rec_state <= WAIT_REC_IRQ;
+      when WAIT_REC_IRQ =>
         rec_stop <= '0';
         if (hmcad_x_int = hmcad_x4_adc_enable) then
-          rec_state <= x"08";
+          rec_state <= WAIT_QSPI;
         end if;
-      when x"08" =>
+      when WAIT_QSPI =>
         if (hmcad_x_int = "0000") then
-          rec_state <= x"00";
+          rec_state <= IDLE;
         end if;
       when others => 
-        rec_state <= x"00";
+        rec_state <= IDLE;
     end case;
   end if;
 end process;
@@ -650,6 +620,7 @@ hmcad_x4_block_inst : entity hmcad_x4_block
   )
   port map(
     clk                     => clk_137_5MHz,
+    areset_fifo             => areset_fifo,
     areset                  => rst, 
     enable                  => hmcad_x4_adc_enable,
     calib_done              => adcx_calib_done,
@@ -664,39 +635,98 @@ hmcad_x4_block_inst : entity hmcad_x4_block
     adcx_dx_b_n             => adcx_dx_b_n,
 
     adcx_clk_out            => hmcad_x_clk,
-    cnt_rst                 => cnt_rst,
-    cnt_out                 => hmcad_x_cnt,
-    data_out                => hmcad_x_data,
+--    cnt_rst                 => cnt_rst,
+--    cnt_out                 => hmcad_x_cnt,
+    data_out                => hmcad_x_data_array,
     valid_out               => hmcad_x_valid
     );
 
+buff_logic_reset <= hmcad_buffer_rst or rec_rst;
+
+adc_channel_gen : for i in 0 to c_channel_num - 1 generate
+
+  hmcad_x_data(i) <= hmcad_x_data_array(i * 64 + 63 downto i * 64);
+
+  hmcad_x_cnt_proc : process(clk_137_5MHz, cnt_rst)
+  begin
+    if (cnt_rst = '1') then
+      hmcad_x_cnt(i) <= (others => '0');
+    elsif rising_edge(clk_137_5MHz) then
+      if (hmcad_x_valid(i) = '1') then
+        hmcad_x_cnt(i) <= hmcad_x_cnt(i) + 1;
+      end if;
+    end if;
+  end process;
+  
+   data_recorder_inst : entity data_recorder
+   generic map(
+     c_max_num_data            => c_max_num_data,
+     c_data_width              => 64,
+     c_cnt_width               => 32
+   )
+   port map( 
+     rst                       => buff_logic_reset,
+
+     mark_delay                => SPIRegisters(SPIRegistersStrucrure'pos(MarkOffset))(natural(round(log2(real(c_max_num_data)))) - 1 downto 0),
+     mark_cnt                  => SPIRegisters(SPIRegistersStrucrure'pos(MarkLength))(natural(round(log2(real(c_max_num_data)))) - 1 downto 0),
+
+     stop                      => rec_stop,
+     stop_cnt                  => rec_stop_cnt,
+
+     s_clk                     => clk_137_5MHz,
+     s_cnt                     => hmcad_x_cnt(i),
+     s_data                    => hmcad_x_data(i),
+     s_valid                   => hmcad_x_valid(i),
+     s_ready                   => rec_rdy(i),
+
+     m_clk                     => clk_137_5MHz,
+     m_en                      => rec_x_en(i),
+     m_data                    => rec_x_data(i*64 + 63 downto i*64),
+     m_valid                   => rec_x_valid(i),
+     m_ready                   => rec_x_ready(i)
+   );
+
+  process(clk_137_5MHz, qspi_x_cs_up(i), buff_logic_reset )
+  begin
+    if ((qspi_x_cs_up(i) = '1') or (buff_logic_reset = '1')) then
+      hmcad_x_int(i) <= '0';
+    elsif rising_edge(clk_137_5MHz) then
+      if (rec_x_valid(i) = '1') then
+        hmcad_x_int(i) <= '1';
+      end if;
+    end if;
+  end process;
+  
+end generate;
+
 mux_data_selector <= SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(3 downto 2);
 
-process(hmcad_x_data, mux_data_selector)
+process(hmcad_x_data, hmcad_x_cnt, hmcad_x_valid, mux_data_selector)
 begin
   case mux_data_selector is
     when "00" => 
-      trigger_data_in <= hmcad_x_data(64 * 0 + 63 downto 64 * 0);
-      trigger_cnt_in <= hmcad_x_cnt(32 * 0 + 31 downto 32 * 0);
+      trigger_data_in <= hmcad_x_data(0);
+      trigger_cnt_in <= hmcad_x_cnt(0);
       trigger_valid_in <= hmcad_x_valid(0);
     when "01" => 
-      trigger_data_in <= hmcad_x_data(64 * 1 + 63 downto 64 * 1);
-      trigger_cnt_in <= hmcad_x_cnt(32 * 1 + 31 downto 32 * 1);
+      trigger_data_in <= hmcad_x_data(1);
+      trigger_cnt_in <= hmcad_x_cnt(1);
       trigger_valid_in <= hmcad_x_valid(1);
     when "10" => 
-      trigger_data_in <= hmcad_x_data(64 * 2 + 63 downto 64 * 2);
-      trigger_cnt_in <= hmcad_x_cnt(32 * 2 + 31 downto 32 * 2);
+      trigger_data_in <= hmcad_x_data(2);
+      trigger_cnt_in <= hmcad_x_cnt(2);
       trigger_valid_in <= hmcad_x_valid(2);
     when others =>
-      trigger_data_in <= hmcad_x_data(64 * 3 + 63 downto 64 * 3);
-      trigger_cnt_in <= hmcad_x_cnt(32 * 3 + 31 downto 32 * 3);
+      trigger_data_in <= hmcad_x_data(3);
+      trigger_cnt_in <= hmcad_x_cnt(3);
       trigger_valid_in <= hmcad_x_valid(3);
   end case;
 end process;
 
 trigger_capture_inst: entity trigger_capture
     generic map(
-      c_data_width      => 64
+      c_data_width      => 64,
+      c_cnt_width       => 32
     )
     Port map(
       clk               => clk_137_5MHz,
@@ -711,48 +741,6 @@ trigger_capture_inst: entity trigger_capture
       trigger           => trigger_out,
       cnt_out           => trigger_cnt_out
     );
-
-data_recorders_inst_gen : for i in 0 to c_channel_num - 1 generate
-  data_recorder_inst : entity data_recorder
-    generic map(
-      c_max_num_data            => c_max_num_data,
-      c_data_width              => 64,
-      c_cnt_width               => 32
---      c_start_delay             => 9
-    )
-    port map( 
-      rst                       => rec_rst,
-
-      mark_delay                => SPIRegisters(SPIRegistersStrucrure'pos(MarkOffset))(natural(round(log2(real(c_max_num_data)))) - 1 downto 0),
-      mark_cnt                  => SPIRegisters(SPIRegistersStrucrure'pos(MarkLength))(natural(round(log2(real(c_max_num_data)))) - 1 downto 0),
-
-      stop                      => rec_stop,
-      stop_cnt                  => rec_stop_cnt,
-
-      s_clk                     => clk_137_5MHz,
-      s_cnt                     => hmcad_x_cnt(i * 32 + 31 downto i * 32),
-      s_data                    => hmcad_x_data(i * 64 + 63 downto i * 64),
-      s_valid                   => hmcad_x_valid(i),
-      s_ready                   => rec_rdy(i),
-
-      m_clk                     => clk_137_5MHz,
-      m_en                      => rec_x_en(i),
-      m_data                    => rec_x_data(i*64 + 63 downto i*64),
-      m_valid                   => rec_x_valid(i),
-      m_ready                   => rec_x_ready(i)
-    );
-
-  process(clk_137_5MHz, qspi_x_cs_up(i), rec_rst )
-  begin
-    if ((qspi_x_cs_up(i) = '1') or (rec_rst = '1'))then
-      hmcad_x_int(i) <= '0';
-    elsif rising_edge(clk_137_5MHz) then
-      if (rec_x_valid(i) = '1') then
-        hmcad_x_int(i) <= '1';
-      end if;
-    end if;
-  end process;
-end generate;
 
 int_adcx <= hmcad_x_int;
 rec_x_ready <= qspi_x_ready;
