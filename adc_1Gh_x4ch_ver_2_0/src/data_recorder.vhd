@@ -41,10 +41,11 @@ entity data_recorder is
 end data_recorder;
 
 architecture Behavioral of data_recorder is
-  signal state_a                : std_logic_vector(7 downto 0):= (others => '0');
+  type state_a_type          is (MASK_CNT_STATE, MASK_REC_STATE, WAIT_TRIG_STATE, RECORD_STATE, READY_STATE);
+  signal state_a                : state_a_type;
   constant state_cnt_max        : std_logic_vector(natural(round(log2(real(c_max_num_data)))) - 1 downto 0):= (others => '1');
-  signal state_a_cnt            : std_logic_vector(natural(round(log2(real(c_max_num_data)))) - 1 downto 0):= (others => '0');
   signal addr_a                 : std_logic_vector(natural(round(log2(real(c_max_num_data)))) - 1 downto 0);
+  signal addr_a_cnt             : std_logic_vector(natural(round(log2(real(c_max_num_data)))) - 1 downto 0);
   signal we_a                   : std_logic:= '0';
   signal en_a                   : std_logic:= '0';
   signal valid                  : std_logic:= '0';
@@ -56,78 +57,80 @@ architecture Behavioral of data_recorder is
   signal state_b                : state_b_type;
   signal addr_b                 : std_logic_vector(natural(round(log2(real(c_max_num_data)))) - 1 downto 0):= (others => '0');
   signal en_b                   : std_logic:= '0';
+  signal mark_delay_u32         : std_logic_vector(c_cnt_width - 1 downto 0);
+  signal di_a                   : std_logic_vector(c_data_width - 1 downto 0);
+  
 begin
 m_valid <= valid;
+mark_delay_u32(mark_delay'length -1 downto 0) <= mark_delay;
 
---addr_a <= state_a_cnt;
+en_a <= '1'; 
 
 process(s_clk, rst)
 begin
   if (rst = '1') then
-    state_a <= x"00";
-    state_a_cnt <= (others => '0');
-    en_a <= '0';
+    state_a <= MASK_CNT_STATE;
     s_ready <= '0';
-    addr_a <= (others => '0');
+    addr_a_cnt <= (others => '0');
+    addr_a  <= (others => '0');
+    di_a    <= (others => '0');
+    we_a    <= '0'; 
   elsif rising_edge(s_clk) then
     case (state_a) is
-      when x"00" => -- wait rst cnt
+      when MASK_CNT_STATE => -- wait mask trigger
         if (s_valid = '1') then
-          if (s_cnt = x"0000_0001") then
-            state_a <= x"01";
-            state_a_cnt <= (others => '0');
+          if (s_cnt >= mark_delay_u32) then
+            state_a <= MASK_REC_STATE; 
           end if;
         end if;
-        en_a <= '0';
-        s_ready <= '0';
-      when x"01" => -- wait mask trigger
+      when MASK_REC_STATE => -- mask recording
         if (s_valid = '1') then
-          if (state_a_cnt < mark_delay) then
-            state_a_cnt <= state_a_cnt + 1;
+          if (addr_a_cnt >= mark_cnt) then
+            state_a <= WAIT_TRIG_STATE;
+          end if;
+          addr_a_cnt <= addr_a_cnt + 1;
+          addr_a <= addr_a_cnt;
+          di_a <= s_data;
+          we_a <= '1'; 
+        else
+          we_a <= '0';
+        end if;
+      when WAIT_TRIG_STATE => -- wait trigger
+        if (s_valid = '1') then
+          if (addr_a_cnt < state_cnt_max) then
+            addr_a_cnt <= addr_a_cnt + 1;
           else
-            state_a_cnt <= (others => '0');
-            addr_a <= (others => '0');
-            state_a <= x"02";
+            addr_a_cnt <= mark_cnt;
           end if;
-        end if;
-        en_a <= '1'; 
-      when x"02" => -- mask recording
-        if (s_valid = '1') then
-          if (addr_a >= mark_cnt) then
-            state_a <= x"03";
-          end if;
-          addr_a <= addr_a + 1;
-        end if;
-      when x"03" => -- wait trigger
-        if (s_valid = '1') then
-          if (addr_a < state_cnt_max) then
-            addr_a <= addr_a + 1;
-          else
-            addr_a <= mark_cnt;
-          end if;
+          addr_a <= addr_a_cnt;
+          di_a <= s_data;
+          we_a <= '1'; 
+        else
+          we_a <= '0';
         end if;
         if (stop = '1') then
-          state_a <= x"04";
+          state_a <= RECORD_STATE;
           s_ready <= '0';
         else
           s_ready <= '1';
         end if;
-      when x"04" =>  
+      when RECORD_STATE =>  
         if (s_valid = '1') then
-          if (addr_a < state_cnt_max) then
-            addr_a <= addr_a + 1;
+          if (addr_a_cnt < state_cnt_max) then
+            addr_a_cnt <= addr_a_cnt + 1;
           else
-            addr_a <= mark_cnt;
+            addr_a_cnt <= mark_cnt;
           end if;
-
+          addr_a <= addr_a_cnt;
+          di_a <= s_data;
+          we_a <= '1'; 
           if (s_cnt >= stop_cnt) then
-            state_a <= x"05";
---            state_a_cnt <= addr_a;
-            en_a <= '0';
+            state_a <= READY_STATE;
           end if;
+        else
+          we_a <= '0';
         end if;
-      when x"05" =>  -- data recording
-        en_a <= '0';
+      when READY_STATE => 
       when others => --ready
     end case;
   end if;
@@ -155,7 +158,7 @@ begin
   elsif rising_edge(m_clk) then
     case (state_b) is
       when IDLE => -- ready
-        if (state_a = x"05") then
+        if (state_a = READY_STATE) then
           state_b <= WAIT_DB;
           en_b <= '1';
         else
@@ -210,8 +213,6 @@ begin
   end if;
 end process;
 
-we_a <= s_valid;
-
 dpram_inst : entity async_ram_dual_port
   generic map (
     WIDTHA      => c_data_width,
@@ -230,7 +231,7 @@ dpram_inst : entity async_ram_dual_port
     we_b        => '0',
     addr_a      => addr_a,
     addr_b      => addr_b,
-    di_a        => s_data,
+    di_a        => di_a,
     di_b        => null_data,
     do_a        => open,
     do_b        => m_data
