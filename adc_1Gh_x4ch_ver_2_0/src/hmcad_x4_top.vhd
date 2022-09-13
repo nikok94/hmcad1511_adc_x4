@@ -681,27 +681,51 @@ end generate;
 
 mux_data_selector <= SPIRegisters(SPIRegistersStrucrure'pos(TriggerSetUp))(3 downto 2);
 
-process(hmcad_x_data, hmcad_x_cnt, hmcad_x_valid, mux_data_selector)
+--process(hmcad_x_data, hmcad_x_cnt, hmcad_x_valid, mux_data_selector)
+--begin
+--  case mux_data_selector is
+--    when "00" => 
+--      trigger_data_in <= hmcad_x_data(0);
+--      trigger_cnt_in <= hmcad_x_cnt(0);
+--      trigger_valid_in <= hmcad_x_valid(0);
+--    when "01" => 
+--      trigger_data_in <= hmcad_x_data(1);
+--      trigger_cnt_in <= hmcad_x_cnt(1);
+--      trigger_valid_in <= hmcad_x_valid(1);
+--    when "10" => 
+--      trigger_data_in <= hmcad_x_data(2);
+--      trigger_cnt_in <= hmcad_x_cnt(2);
+--      trigger_valid_in <= hmcad_x_valid(2);
+--    when others =>
+--      trigger_data_in <= hmcad_x_data(3);
+--      trigger_cnt_in <= hmcad_x_cnt(3);
+--      trigger_valid_in <= hmcad_x_valid(3);
+--  end case;
+--end process;
+
+p_parity_check : process (clk_137_5MHz)
+variable vparity_data           : std_logic_vector(63 downto 0);
+variable vparity_cnt            : std_logic_vector(31 downto 0);
+variable vparity_valid          : std_logic;
 begin
-  case mux_data_selector is
-    when "00" => 
-      trigger_data_in <= hmcad_x_data(0);
-      trigger_cnt_in <= hmcad_x_cnt(0);
-      trigger_valid_in <= hmcad_x_valid(0);
-    when "01" => 
-      trigger_data_in <= hmcad_x_data(1);
-      trigger_cnt_in <= hmcad_x_cnt(1);
-      trigger_valid_in <= hmcad_x_valid(1);
-    when "10" => 
-      trigger_data_in <= hmcad_x_data(2);
-      trigger_cnt_in <= hmcad_x_cnt(2);
-      trigger_valid_in <= hmcad_x_valid(2);
-    when others =>
-      trigger_data_in <= hmcad_x_data(3);
-      trigger_cnt_in <= hmcad_x_cnt(3);
-      trigger_valid_in <= hmcad_x_valid(3);
-  end case;
-end process;
+  if rising_edge(clk_137_5MHz) then
+    vparity_data := (others => '0');
+    vparity_cnt := (others => '0');
+    vparity_valid := '0';
+    l_parity : for k in 0 to c_channel_num - 1 loop
+      if (k = conv_integer(unsigned(mux_data_selector))) then
+        vparity_data := hmcad_x_data(k);
+        vparity_cnt := hmcad_x_cnt(k);
+        vparity_valid := hmcad_x_valid(k);
+      end if;
+    end loop l_parity;
+    
+    trigger_data_in <= vparity_data;
+    trigger_cnt_in <= vparity_cnt;
+    trigger_valid_in <= vparity_valid;
+  end if;
+end process p_parity_check;
+
 
 trigger_capture_inst: entity trigger_capture
     generic map(
