@@ -211,9 +211,10 @@ architecture Behavioral of hmcad_x4_top is
     signal hmcad_x_cnt_test_1           : std_logic_vector(c_channel_num * 32 - 1 downto 0);
     signal hmcad_x_cnt_test_2           : std_logic_vector(c_channel_num * 32 - 1 downto 0);
     
-    signal qspi_x_cs_up                 : std_logic_vector(c_channel_num - 1 downto 0);
-    signal qspi_x_ready                 : std_logic_vector(c_channel_num - 1 downto 0);
-    signal qspi_x_en                    : std_logic_vector(c_channel_num - 1 downto 0);
+    signal qspi_x_cs_up                 : std_logic_vector(c_channel_num - 1 downto 0):=(others => '0');
+    signal qspi_x_ready                 : std_logic_vector(c_channel_num - 1 downto 0):=(others => '0');
+    signal qspi_x_en                    : std_logic_vector(c_channel_num - 1 downto 0):=(others => '0');
+    signal qspi_x_clk                   : std_logic_vector(c_channel_num - 1 downto 0):=(others => '0');
     signal qspi_x_data                  : std_logic_vector(c_channel_num * 64 - 1 downto 0);
     
     signal adcx_lclk_p                  : std_logic_vector(c_channel_num - 1 downto 0);
@@ -750,7 +751,8 @@ int_adcx <= hmcad_x_int;
 rec_x_ready <= qspi_x_ready;
 qspi_x_data <= rec_x_data;
 rec_x_en <= qspi_x_en;
- 
+qspi_x_clk <= (others => clk_137_5MHz);
+
 QSPI_interconnect_inst : entity QSPI_interconnect
   Generic map(
     c_num_slave_port    => 4,
@@ -761,8 +763,8 @@ QSPI_interconnect_inst : entity QSPI_interconnect
     C_LSB_FIRST         => false
   )
   Port map(
-    slave_x_clk         => clk_137_5MHz,
-    slave_x_en          => qspi_x_en,
+    slave_x_clk         => qspi_x_clk,
+--    slave_x_en          => qspi_x_en,
     slave_x_ready       => qspi_x_ready,
     slave_x_data        => qspi_x_data ,
     slave_x_cs_up       => qspi_x_cs_up,

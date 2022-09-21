@@ -46,12 +46,10 @@ entity QSPI_interconnect is
     C_LSB_FIRST         : boolean := false
   );
   Port (
-    slave_x_clk         : in std_logic;
-    slave_x_en          : out std_logic_vector(c_num_slave_port - 1 downto 0);
+    slave_x_clk         : in std_logic_vector(c_num_slave_port - 1 downto 0);
     slave_x_ready       : out std_logic_vector(c_num_slave_port - 1 downto 0);
     slave_x_data        : in std_logic_vector(c_num_slave_port*c_data_width - 1 downto 0);
     slave_x_cs_up       : out std_logic_vector(c_num_slave_port - 1 downto 0);
-    
     qspi_sio            : inout std_logic_vector(3 downto 0);
     qspi_sck            : in std_logic;
     qspi_cs             : in std_logic
@@ -64,21 +62,17 @@ architecture Behavioral of QSPI_interconnect is
   signal qspi_t             : std_logic;
   signal sio                : std_logic_vector(3 downto 0);
   signal cmd                : std_logic_vector(c_command_width - 1 downto 0);
-  signal cmd_d              : std_logic_vector(c_command_width - 1 downto 0):= (others => '0');
+  signal cmd_d              : std_logic_vector(c_command_width - 1 downto 0);
   signal cmd_valid          : std_logic;
   --type sync_vect_type is array(0 to c_num_slave_port - 1) of std_logic_vector(num_stage - 1 downto 0);
   signal ready_sync_vect    : std_logic_vector(num_stage*c_num_slave_port - 1 downto 0);
   signal rst_sync_vect      : std_logic_vector(num_stage*c_num_slave_port - 1 downto 0);
   signal qcounter           : integer;
   signal ready              : std_logic;
-  signal ready_s            : std_logic;
-  signal to_treg            : std_logic_vector(c_data_width - 1 downto 0);
   signal treg               : std_logic_vector(c_data_width - 1 downto 0);
-  signal tdata              : std_logic_vector(c_data_width - 1 downto 0);
   signal mode               : std_logic;
   signal ssck               : std_logic;
   signal slave_x_data_d     : std_logic_vector(c_num_slave_port*c_data_width - 1 downto 0);
-  signal cs_up              : std_logic;
 
 begin
 
@@ -101,65 +95,39 @@ spi_data_receiver_inst : entity spi_data_receiver
 
 qspi_sio <= (others => 'Z') when qspi_t = '1' else sio;
 
-process(cmd_d, ready_s, cs_up, slave_x_data)
-begin
-    case(cmd_d) is
-      when x"00" =>
-        slave_x_en <= (0 =>'1', others => '0');
-        slave_x_ready <= (0 => ready_s, others => '0');
-        slave_x_cs_up <= (0 => cs_up, others => '0');
-        tdata <= slave_x_data(c_data_width*0 + c_data_width - 1 downto c_data_width*0);
-      when x"01" =>
-        slave_x_en <= (1 =>'1', others => '0');
-        slave_x_ready <= (1 => ready_s, others => '0');
-        slave_x_cs_up <= (1 => cs_up, others => '0');
-        tdata <= slave_x_data(c_data_width*1 + c_data_width - 1 downto c_data_width*1);
-      when x"02" =>
-        slave_x_en <= (2 =>'1', others => '0');
-        slave_x_ready <= (2 => ready_s, others => '0');
-        slave_x_cs_up <= (2 => cs_up, others => '0');
-        tdata <= slave_x_data(c_data_width*2 + c_data_width - 1 downto c_data_width*2);
-      when x"03" =>
-        slave_x_en <= (3 =>'1', others => '0');
-        slave_x_ready <= (3 => ready_s, others => '0');
-        slave_x_cs_up <= (3 => cs_up, others => '0');
-        tdata <= slave_x_data(c_data_width*3 + c_data_width - 1 downto c_data_width*3);
-      when others =>
-    end case;
-end process;
-
-process(slave_x_clk)
-begin
-  if rising_edge(slave_x_clk) then
-    if (ready_s = '1') then
-      to_treg <= tdata;
-    end if;
-  end if;
-end process;
-
-process(slave_x_clk)
-begin
-  if rising_edge(slave_x_clk) then
+ready_gen_proc : for i in 0 to c_num_slave_port - 1 generate
+  process(qspi_t, slave_x_clk(i))
+  begin
     if (qspi_t = '1') then
-      ready_s <= '0';
-      ready_sync_vect <= (others => '0');
-    else
-      ready_sync_vect(0) <= ready;
-      ready_sync_vect(ready_sync_vect'length - 1 downto 1) <= ready_sync_vect(ready_sync_vect'length - 2 downto 0);
-      ready_s <= (not ready_sync_vect(ready_sync_vect'length - 1)) and ready_sync_vect(ready_sync_vect'length - 2);
+      slave_x_ready(i) <= '0';
+      ready_sync_vect(i*num_stage + num_stage - 1 downto i*num_stage) <= (others => '0');
+    elsif rising_edge(slave_x_clk(i)) then
+      if (cmd_d = i) then
+        ready_sync_vect(i*num_stage) <= ready;
+      else
+        ready_sync_vect(i*num_stage) <= '0';
+      end if;
+      ready_sync_vect(i*num_stage + num_stage - 1 downto i*num_stage + 1) <= ready_sync_vect(i*num_stage + num_stage - 2 downto i*num_stage);
+      slave_x_ready(i) <= (not ready_sync_vect(i*num_stage + num_stage - 1)) and ready_sync_vect(i*num_stage + num_stage - 2);
     end if;
-  end if;
-end process;
+  end process;
 
-slave_x_cs_up_proc :
-process(slave_x_clk)
-begin
-  if rising_edge(slave_x_clk) then
-    rst_sync_vect(0) <= qspi_cs;
-    rst_sync_vect(rst_sync_vect'length - 1 downto 1) <= rst_sync_vect(rst_sync_vect'length - 2 downto 0);
-    cs_up <= (not rst_sync_vect(rst_sync_vect'length - 1)) and rst_sync_vect(rst_sync_vect'length - 2);
-  end if;
-end process;
+
+  slave_x_cs_up_proc :
+  process(slave_x_clk(i))
+  begin
+    if rising_edge(slave_x_clk(i)) then
+      if (cmd_d = i) then
+        rst_sync_vect(i*num_stage) <= qspi_cs;
+      else
+        rst_sync_vect(i*num_stage) <= '0';
+      end if;
+      rst_sync_vect(i*num_stage + num_stage - 1 downto i*num_stage + 1) <= rst_sync_vect(i*num_stage + num_stage - 2 downto i*num_stage);
+      slave_x_cs_up(i) <= (not rst_sync_vect(i*num_stage + num_stage - 1)) and rst_sync_vect(i*num_stage + num_stage - 2);
+    end if;
+  end process;
+
+end generate;
 
 mode <= c_cpol XOR c_cpha;
   WITH mode SELECT
@@ -190,11 +158,10 @@ ready_proc:
       ready <= '0';
       qcounter <= C_NUM_QBURST;
       treg <= (others => 'Z');
-      cmd_d <= (others => '0');
     elsif falling_edge(ssck) then
       if (qspi_t = '1') then
         if (cmd_valid = '1') then
-          treg <= to_treg;
+          treg <= slave_x_data(conv_integer(cmd)*c_data_width + c_data_width - 1 downto conv_integer(cmd)*c_data_width);
           cmd_d <= cmd;
           qspi_t <= '0';
           ready <= '1';
@@ -209,7 +176,7 @@ ready_proc:
         else
           ready <= '1';
           qcounter <= 0;
-          treg <= to_treg;
+          treg <= slave_x_data(conv_integer(cmd_d)*c_data_width + c_data_width - 1 downto conv_integer(cmd_d)*c_data_width);
         end if;
       end if;
     end if;
@@ -229,7 +196,7 @@ ready_proc:
     elsif falling_edge(ssck) then
       if (qspi_t = '1') then
         if (cmd_valid = '1') then
-          treg <= to_treg;
+          treg <= slave_x_data(conv_integer(cmd)*c_data_width + c_data_width - 1 downto conv_integer(cmd)*c_data_width);
           cmd_d <= cmd;
           qspi_t <= '0';
           ready <= '1';
@@ -244,7 +211,7 @@ ready_proc:
         else
           ready <= '1';
           qcounter <= 0;
-          treg <= to_treg;
+          treg <= slave_x_data(conv_integer(cmd_d)*c_data_width + c_data_width - 1 downto conv_integer(cmd_d)*c_data_width);
         end if;
       end if;
     end if;
