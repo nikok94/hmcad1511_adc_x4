@@ -276,6 +276,8 @@ architecture Behavioral of hmcad_x4_top is
     signal rec_state                    : rec_state_type;
     signal rec_state_rst                : std_logic;
     signal areset_fifo                  : std_logic;
+    type irq_state_array_type           is array (c_channel_num - 1 downto 0) of std_logic_vector(7 downto 0);
+    signal irq_state_array              : irq_state_array_type;
     
 begin
 wr_rec_cnt_max(natural(round(log2(real(c_max_num_data)))) - 1 downto 0) <= (others => '1');
@@ -531,7 +533,7 @@ begin
           rec_state <= WAIT_ADC_CALIB_DONE;
           wr_rec_cnt <= wr_rec_cnt_max;
         end if;
-        rec_rst <= '0';
+        rec_rst <= '1';
         trigger_rst <= '1';
         rec_stop <= '0';
         adcxSyncPulse <= '0';
@@ -554,25 +556,28 @@ begin
           wr_rec_cnt <= wr_rec_cnt - (x"0000" & SPIRegisters(SPIRegistersStrucrure'pos(MarkLength)));
         end if;
       when WAIT_TRG =>
-        if (trigger_mode = "01") then-- normal start
-          rec_state <= NORMAL_STRT;
-          trigger_rst <= '0';
-          wr_rec_cnt <= wr_rec_cnt - (x"0000" & SPIRegisters(SPIRegistersStrucrure'pos(TriggerPositionSetUp)));
-        elsif (trigger_mode = "11") then -- ext start
-          rec_state <= EXT_STRT;
-        else --auto start
-          rec_state <= AUTO_STRT;
-        end if;
+        case (trigger_mode) is
+          when "01" => -- normal start
+            rec_state <= NORMAL_STRT;
+            trigger_rst <= '0';
+            wr_rec_cnt <= wr_rec_cnt - (x"0000" & SPIRegisters(SPIRegistersStrucrure'pos(TriggerPositionSetUp)));
+          when "11" => -- ext start
+            rec_state <= EXT_STRT;
+          when others =>--auto start
+            rec_state <= AUTO_STRT;
+        end case;
       when NORMAL_STRT => -- normal start
         if (trigger_out = '1') then
-          rec_state <= REC_STOP_CMD; 
+          rec_state <= REC_STOP_CMD;
+          rec_stop_cnt <= trigger_cnt_out + wr_rec_cnt;
         end if;
       when EXT_STRT => -- ext start
-          rec_state <= REC_STOP_CMD; 
+          rec_state <= REC_STOP_CMD;
+          rec_stop_cnt <= trigger_cnt_in + wr_rec_cnt;
       when AUTO_STRT => -- auto start
           rec_state <= REC_STOP_CMD;
+          rec_stop_cnt <= trigger_cnt_in + wr_rec_cnt;
       when REC_STOP_CMD =>
-        rec_stop_cnt <= trigger_cnt_out + wr_rec_cnt;
         trigger_rst <= '1';
         rec_stop <= '1';
         rec_state <= WAIT_REC_IRQ;
@@ -667,14 +672,26 @@ adc_channel_gen : for i in 0 to c_channel_num - 1 generate
      m_ready                   => rec_x_ready(i)
    );
 
-  process(clk_137_5MHz, qspi_x_cs_up(i), areset_fifo )
+  process(clk_137_5MHz, areset_fifo )
   begin
-    if ((qspi_x_cs_up(i) = '1') or (areset_fifo = '1')) then
+    if (areset_fifo = '1') then
       hmcad_x_int(i) <= '0';
+      irq_state_array(i) <= (others => '0');
     elsif rising_edge(clk_137_5MHz) then
-      if (rec_x_valid(i) = '1') then
-        hmcad_x_int(i) <= '1';
-      end if;
+      case (irq_state_array(i)) is
+        when x"00" =>
+          if (rec_x_valid(i) = '1') then
+            hmcad_x_int(i) <= '1';
+            irq_state_array(i) <= x"01";
+          end if;
+        when x"01" =>
+          if (qspi_x_cs_up(i) = '1') then
+            hmcad_x_int(i) <= '0';
+            irq_state_array(i) <= x"02";
+          end if;
+        when others =>
+          
+      end case;
     end if;
   end process;
   
