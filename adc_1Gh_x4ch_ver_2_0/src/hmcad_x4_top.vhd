@@ -109,8 +109,14 @@ entity hmcad_x4_top is
         
         led                     : out std_logic;
 
-        vic_pulse               : out std_logic
-
+        vic_pulse               : out std_logic;
+        
+-- //** spi flash        
+        flash_cs                : out std_logic;
+        flash_mosi              : out std_logic;
+        flash_miso              : in  std_logic;
+        flash_sck               : out std_logic
+-- **// spi flash
         );
 end hmcad_x4_top;
 
@@ -280,6 +286,17 @@ architecture Behavioral of hmcad_x4_top is
     signal irq_state_array              : irq_state_array_type;
     
 begin
+-- //** spi flash
+flash_cs   <= cs_dd;
+flash_mosi <= fpga_mosi; 
+flash_sck  <= fpga_sck;
+
+--fpga_miso  <= flash_miso when (cs_dd = '0') else MISO_O;
+
+-- **// spi flash
+
+fpga_miso <= MISO_O when (fpga_cs = '0') else flash_miso;
+
 wr_rec_cnt_max(natural(round(log2(real(c_max_num_data)))) - 1 downto 0) <= (others => '1');
 rst <= infrst_rst_out;
 
@@ -422,16 +439,16 @@ spi_fcb_master_inst : entity spi_adc_250x4_master
       m_fcb_rdack       => m_fcb_rdack
     );
 
-OBUFT_inst : OBUFT
-   generic map (
-      DRIVE => 12,
-      IOSTANDARD => "DEFAULT",
-      SLEW => "SLOW")
-   port map (
-      O => fpga_miso,     -- Buffer output (connect directly to top-level port)
-      I => MISO_O,     -- Buffer input
-      T => MISO_T      -- 3-state enable input 
-   );
+--OBUFT_inst : OBUFT
+--   generic map (
+--      DRIVE => 12,
+--      IOSTANDARD => "DEFAULT",
+--      SLEW => "SLOW")
+--   port map (
+--      O => fpga_miso,     -- Buffer output (connect directly to top-level port)
+--      I => MISO_O,     -- Buffer input
+--      T => MISO_T      -- 3-state enable input 
+--   );
 
 MOSI_I <= fpga_mosi;
 

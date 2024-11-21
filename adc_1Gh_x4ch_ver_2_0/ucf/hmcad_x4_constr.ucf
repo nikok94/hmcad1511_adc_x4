@@ -448,3 +448,7 @@ NET "spifi_sck" CLOCK_DEDICATED_ROUTE = FALSE;
 NET "fpga_sck" CLOCK_DEDICATED_ROUTE = FALSE;
 
 
+NET "flash_miso" LOC = P10;
+NET "flash_cs" LOC = T3;
+NET "flash_mosi" LOC = T10;
+NET "flash_sck" LOC = R11;
