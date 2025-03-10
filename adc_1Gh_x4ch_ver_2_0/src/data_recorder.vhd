@@ -50,8 +50,6 @@ architecture Behavioral of data_recorder is
   signal en_a                   : std_logic:= '0';
   signal valid                  : std_logic:= '0';
   
-
-
   constant null_data            : std_logic_vector(c_data_width - 1 downto 0):= (others => '0');
   type state_b_type          is (IDLE, WAIT_DB, WAIT_M_READY0, ADDR_B_INC0, WAIT_DB1, WAIT_M_READY1, ADDR_B_INC1, CONT);
   signal state_b                : state_b_type;

@@ -133,7 +133,7 @@ architecture Behavioral of hmcad_x4_top is
     signal rst                          : std_logic;
     signal infrst_rst_out               : std_logic;
     
-    type SPIRegistersStrucrure       is (TriggerSetUp, ADCEnableReg, TriggerPositionSetUp, ControlReg, BufferLength, PulseOffset, MarkOffset, MarkLength, StructureLength);
+    type SPIRegistersStrucrure       is (TriggerSetUp, ADCEnableReg, TriggerPositionSetUp, ControlReg, BufferLength, PulseOffset, MarkOffset, MarkLength, AutoStartDelay, StructureLength);
     type SPIRegistersType    is array (SPIRegistersStrucrure'pos(StructureLength) - 1 downto 0) of std_logic_vector(15 downto 0);
     signal SPIRegisters                 : SPIRegistersType := (
                                             SPIRegistersStrucrure'pos(TriggerSetUp) => x"7F00",
@@ -144,6 +144,7 @@ architecture Behavioral of hmcad_x4_top is
                                             SPIRegistersStrucrure'pos(PulseOffset) => x"0000",
                                             SPIRegistersStrucrure'pos(MarkOffset) => x"0014",
                                             SPIRegistersStrucrure'pos(MarkLength) => x"0004",
+                                            SPIRegistersStrucrure'pos(AutoStartDelay) => x"0000",
                                             others => (others => '0')
                                             );
 
@@ -278,12 +279,13 @@ architecture Behavioral of hmcad_x4_top is
     signal rec_rdy                      : std_logic_vector(c_channel_num - 1 downto 0);
 
     signal mux_data_selector            : std_logic_vector(1 downto 0);
-    type rec_state_type                 is (IDLE, FIFO_RST, WAIT_ADC_CALIB_DONE, RST_LOGIC, SYNC_PULSE_STATE, WAIT_REC_RDY, WAIT_TRG, NORMAL_STRT, AUTO_STRT, EXT_STRT, REC_STOP_CMD, WAIT_REC_IRQ, WAIT_QSPI);
+    type rec_state_type                 is (IDLE, FIFO_RST, WAIT_ADC_CALIB_DONE, RST_LOGIC, SYNC_PULSE_STATE, WAIT_REC_RDY, WAIT_TRG, NORMAL_STRT, AUTO_STRT_DELAY, AUTO_STRT, EXT_STRT, REC_STOP_CMD, WAIT_REC_IRQ, WAIT_QSPI);
     signal rec_state                    : rec_state_type;
     signal rec_state_rst                : std_logic;
     signal areset_fifo                  : std_logic;
     type irq_state_array_type           is array (c_channel_num - 1 downto 0) of std_logic_vector(7 downto 0);
     signal irq_state_array              : irq_state_array_type;
+    signal auto_strt_delay_cnt          : std_logic_vector(15 downto 0); 
     
 begin
 -- //** spi flash
@@ -581,7 +583,8 @@ begin
           when "11" => -- ext start
             rec_state <= EXT_STRT;
           when others =>--auto start
-            rec_state <= AUTO_STRT;
+            rec_state <= AUTO_STRT_DELAY;
+            auto_strt_delay_cnt <= (others => '0');
         end case;
       when NORMAL_STRT => -- normal start
         if (trigger_out = '1') then
@@ -591,6 +594,11 @@ begin
       when EXT_STRT => -- ext start
           rec_state <= REC_STOP_CMD;
           rec_stop_cnt <= trigger_cnt_in + wr_rec_cnt;
+      when AUTO_STRT_DELAY =>
+          auto_strt_delay_cnt <= auto_strt_delay_cnt + 1;
+          if (auto_strt_delay_cnt > SPIRegisters(SPIRegistersStrucrure'pos(AutoStartDelay))) then
+            rec_state <= AUTO_STRT;
+          end if;
       when AUTO_STRT => -- auto start
           rec_state <= REC_STOP_CMD;
           rec_stop_cnt <= trigger_cnt_in + wr_rec_cnt;
@@ -612,8 +620,6 @@ begin
     end case;
   end if;
 end process;
-
-
 
 hmcad_x4_block_inst : entity hmcad_x4_block
   generic map(
